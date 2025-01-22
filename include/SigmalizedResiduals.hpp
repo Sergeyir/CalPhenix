@@ -63,6 +63,8 @@ struct
 
    // useful object to employ for quick TLatex insertions
    TLatex texText;
+
+   std::unique_ptr<TFile> outputFile;
 } Par;
 
 int main(int argc, char **argv);
