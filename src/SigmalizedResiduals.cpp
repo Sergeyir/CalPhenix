@@ -21,10 +21,18 @@
 
 int main(int argc, char **argv)
 {
-   if (argc != 2)
+   if (argc < 2 || argc > 3) 
    {
-      PrintError("Expected 1 parameters while " + std::to_string(argc - 1) + " were provided");
+      const std::string errMsg = 
+         "Expected 1-2 parameters while " + std::to_string(argc) + " parameter(s) were provided \n
+          Usage: bin/SigmalizedResiduals inputFile numberOfThreads=std::thread::hardware_concurrency()";
+      PrintError(errMsg);
    }
+
+   unsigned int numberOfThreads;
+
+   if (argc > 2) numberOfThreads = std::stoi(argv[2]);
+   else numberOfThreads = std::thread::hardware_concurrency();
    
    // opening input file with parameters for calibrations
    Par.inputJSONCal.OpenFile(argv[1], "sigmalized_residuals");
@@ -45,7 +53,7 @@ int main(int argc, char **argv)
       exit(1);
    }
 
-   ROOT::EnableImplicitMT();
+   ROOT::EnableImplicitMT(numberOfThreads);
    ROOT::EnableThreadSafety();
    gErrorIgnoreLevel = kWarning;
    gStyle->SetOptStat(0);
@@ -97,6 +105,8 @@ int main(int argc, char **argv)
    const std::string outputDir = "output/ResidualCal/" + Par.runName + "/";
    Par.outputFile = std::make_unique<TFile>(TFile::Open((outputDir + "/all_fits.root", "RECREATE"));
 
+   std::vector<std::thread> thrCalls;
+
    for (const Json::Value& detector : calibrationInput["detectors_to_calibrate"])
    {
       const std::string detectorName = detector["name"].asString();
@@ -118,13 +128,14 @@ int main(int argc, char **argv)
                // same as before but without percent; used for output file names
                const std::string centralityRangePathName = 
                   "_c" + centralityBin["min"].asString() + "-" + centralityBin["max"].asString();
-
-               Par.outputFile.mkdir((detectorName + "/" + variableName + "/" + 
-                                     particleType + "/" + centralityRangePathName).c_str());
-
+               
+               TDirectory *currentOutputTDir = 
+                  Par.outputFile.mkdir((detectorName + "/" + variableName + "/" + 
+                                        particleType + "/" + centralityRangePathName).c_str());
+               
                std::vector<TGraphErrors> grVMeansVsPT, grVSigmasVsPT;
                std::vector<TF1> fVMeansVsPT, fVSigmasVsPT;
-
+               
                // histograms with weights representing means and sigmas
                TH2D distrMeansVsZDCVsPT("means", "#mu", 
                                         calibrationInput["zdc_bins"].size(), 
@@ -306,7 +317,7 @@ int main(int argc, char **argv)
                   SetTitle(("#mu_{" + variable["tex_name"].asString() + "}").c_str());
                meansFrame->GetXaxis()->SetTitleOffset(1.1);
                meansFrame->GetYaxis()->SetTitleOffset(2.0);
-               meansFrame->Draw("SAME AXIS X+ Y+");
+               gPad->Add(meansFrame->Clone(), "SAME AXIS X+ Y+");
                
                for (unsigned long i = 0; i < calibrationInput["zdc_bins"].size(); i++)
                {
@@ -316,11 +327,11 @@ int main(int argc, char **argv)
                      calibrationInput["zdc_bins"][static_cast<int>(i)]["max"].asString();
                   
                   legend.AddEntry(&grVMeansVsPT[i], zDCRangeName.c_str(), "P");
-                  grVMeansVsPT[i].Clone()->Draw("SAME P");
-                  fVMeansVsPT[i].Clone()->Draw("SAME");
+                  gPad->Add(grVMeansVsPT[i].Clone(), "SAME P");
+                  gPad->Add(fVMeansVsPT[i].Clone(), "SAME");
                }
 
-               legend.DrawClone();
+               gPad->Add(legend.Clone());
                
                PrintCanvas(&canv, outputDir + detectorName + "_means_" + variableName + "_" + 
                            particleType["name_short"].asString() + centralityRangePathName);
