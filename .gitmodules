@@ -1,0 +1,9 @@
+[submodule "CppTools"]
+	path = CppTools
+	url = git@github.com:Sergeyir/CppTools
+[submodule "ROOTTools"]
+	path = ROOTTools
+	url = git@github.com:Sergeyir/ROOTTools
+[submodule "ProgressBar"]
+	path = ProgressBar
+	url = git@github.com:Sergeyir/ProgressBar
