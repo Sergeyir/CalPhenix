@@ -20,6 +20,7 @@
 #include <memory>
 #include <thread>
 #include <algorithm>
+#include <filesystem>
 
 #include "TFile.h"
 #include "TH1.h"
@@ -54,6 +55,24 @@ struct
    const std::string meansFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
    const std::string sigmasFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
    
+   // useful object to employ for quick TLatex insertions
+   TLatex texText;
+
+   std::unique_ptr<TFile> inputFile, outputFile;
+   
+   std::string outputDir;
+   
+   double pTMin, pTMax;
+
+   std::vector<double> pTRanges, centralityRanges;
+
+   bool isProcessFinished = false;
+   
+   unsigned long numberOfIterations;
+   unsigned long numberOfCalls;
+   bool showProgress = true; // if true ProgressBar is printed; 
+                             // else the progress is written in tmp file
+   
    const double minIntegralValue = 3e2; // minimum number of entries for 
                                         // the histogram to be approximated
                                         // if the requirement for this value is not met
@@ -61,31 +80,18 @@ struct
    
    // number of consequent fits of dphi and dz distributions for better approximation results
    const unsigned short fitNTries = 5;
-
-   // useful object to employ for quick TLatex insertions
-   TLatex texText;
-
-   std::unique_ptr<TFile> inputFile;
-   std::unique_ptr<TFile> outputFile;
    
-   std::string outputDir;
-
-   double pTMin, pTMax;
-
-   std::vector<double> pTRanges, centralityRanges;
-
-   unsigned long numberOfIterations;
-   unsigned long numberOfCalls;
 } Par;
 
 int main(int argc, char **argv);
 void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
-                                        const unsigned int variableBin,
-                                        const unsigned int particleBin);
+                                        const unsigned int variableBin);
 void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
                                TDirectory *currentOutputDir, const Json::Value& calibrationInput,
                                const Json::Value& detector, const Json::Value& variable,
                                const Json::Value& zDCBin, const Json::Value& particleType,
                                const Json::Value& centralityBin);
+void PBarCall();
+void SetNumberOfCalls();
 
 #endif /* SIGMALIZED_RESIDUALS_HPP */
