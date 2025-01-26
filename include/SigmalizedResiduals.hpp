@@ -38,6 +38,7 @@
 #include "MathTools.hpp"
 
 #include "TCanvasPrinter.hpp"
+#include "FitTools.hpp"
 
 #include "PBar.hpp"
 
@@ -54,6 +55,13 @@ struct
    // the functions listed below are quite good at this first preliminary approximation
    const std::string meansFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
    const std::string sigmasFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
+
+   // charges of particles to be analyzed independently
+   const std::array<int, 2> particleCharges{1, -1};
+
+   // names of variables to be calibrated
+   const std::array<std::string, 2> variableName{"dphi", "dz"};
+   const std::array<std::string, 2> variableNameTex{"d#varphi", "dz_{DC}"};
    
    // useful object to employ for quick TLatex insertions
    TLatex texText;
@@ -66,10 +74,11 @@ struct
 
    std::vector<double> pTRanges, centralityRanges;
 
+   ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
    bool isProcessFinished = false;
    
-   unsigned long numberOfIterations;
-   unsigned long numberOfCalls;
+   unsigned long numberOfIterations = 0;
+   unsigned long numberOfCalls = 0;
    bool showProgress = true; // if true ProgressBar is printed; 
                              // else the progress is written in tmp file
    
@@ -80,7 +89,8 @@ struct
    
    // number of consequent fits of dphi and dz distributions for better approximation results
    const unsigned short fitNTries = 5;
-   
+
+   int programMode;
 } Par;
 
 int main(int argc, char **argv);
@@ -88,7 +98,7 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                                         const unsigned int variableBin);
 void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
                                const Json::Value& calibrationInput, const Json::Value& detector, 
-                               const Json::Value& variable, const Json::Value& zDCBin, 
+                               const unsigned int variableBin, const Json::Value& zDCBin, 
                                const int charge, const Json::Value& centralityBin);
 void PBarCall();
 void SetNumberOfCalls();

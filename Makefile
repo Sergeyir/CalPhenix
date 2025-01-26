@@ -48,6 +48,7 @@ Box: 			  	 	 $(CPP_TOOLS_LIB_DIR)/libBox.so
 
 ROOTToolsLib: 	 	 TCanvasPrinter
 TCanvasPrinter: 	 $(ROOT_TOOLS_LIB_DIR)/libTCanvasPrinter.so
+FitTools: 	       $(ROOT_TOOLS_LIB_DIR)/libFitTools.so
 
 # ProgressBar target groups
 
@@ -106,12 +107,11 @@ $(ROOT_TOOLS_LIB_DIR)/TCanvasPrinter.o: $(ROOT_TOOLS_SRC_DIR)/TCanvasPrinter.cpp
 	$(CXX) $< $(CXX_COMMON_LIB) -o $@ \
 	$(ROOT_INCLUDE) `$(ROOT_CONFIG) --glibs`
 
-$(ROOT_TOOLS_LIB_DIR)/GUIFit.o: $(ROOT_TOOLS_SRC_DIR)/GUIFit.cpp | ErrorHandler IOTools \
-										  $(CPP_TOOLS_LIB_DIR)
+$(ROOT_TOOLS_LIB_DIR)/FitTools.o: $(ROOT_TOOLS_SRC_DIR)/FitTools.cpp | \
+											 $(ROOT_TOOLS_LIB_DIR)
 	@$(ECHO) Building CXX object $@
 	$(CXX) $< $(CXX_COMMON_LIB) -o $@ \
-	$(ROOT_INCLUDE) `$(ROOT_CONFIG) --glibs` \
-	$(CPP_TOOLS_INCLUDE) -L$(CPP_TOOLS_LIB_DIR) -l ErrorHandler -lIOTools
+	$(ROOT_INCLUDE) `$(ROOT_CONFIG) --glibs`
 
 $(ROOT_TOOLS_LIB_DIR)/lib%.so: $(ROOT_TOOLS_LIB_DIR)/%.o
 	@$(ECHO) Building CXX shared library $@

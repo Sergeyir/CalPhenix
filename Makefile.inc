@@ -13,7 +13,7 @@ CPP_TOOLS_LIB=-L $(CPP_TOOLS_LIB_DIR) -Wl,-rpath,$(CPP_TOOLS_LIB_DIR) -lBox -lTi
 ROOT_TOOLS_LIB_DIR=./ROOTTools/lib
 ROOT_TOOLS_SRC_DIR=./ROOTTools/src
 ROOT_TOOLS_INCLUDE=-I ./ROOTTools/include
-ROOT_TOOLS_LIB=-L $(ROOT_TOOLS_LIB_DIR) -Wl,-rpath,$(ROOT_TOOLS_LIB_DIR) -lTCanvasPrinter
+ROOT_TOOLS_LIB=-L $(ROOT_TOOLS_LIB_DIR) -Wl,-rpath,$(ROOT_TOOLS_LIB_DIR) -lTCanvasPrinter -lFitTools
 
 PBAR_LIB_DIR=./ProgressBar/lib
 PBAR_SRC_DIR=./ProgressBar/src

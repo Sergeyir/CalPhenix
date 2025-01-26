@@ -6,52 +6,79 @@
    {
       "description": "Calibration of sigmalized residuals dphi and dz of charged tracks",
       "calibration_done": false,
-      "variables_to_calibrate":
-      [
-         {"name": "dphi", "tex_name": "d#varphi", "abs_max_fit_val": 0.015},
-         {"name": "dz", "tex_name": "dz_{DC}", "abs_max_fit_val": 7.0}
-      ],
       "detectors_to_calibrate":
       [
          {
             "name": "EMCale0", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0])",
+            "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
+            "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0])",
+            "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCale1", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCale2", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCale3", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCalw0", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCalw1", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCalw2", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          },
          {
             "name": "EMCalw3", 
-            "means_fit": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
-            "sigmas_fit": "[0] + [1]/x + [2]*x"
+            "means_fit_func_dphi": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dphi": "[0] + [1]/x + [2]*x",
+            "means_fit_func_dz": "[0] + [1]/x + [2]/x^2 + [3]/x^3 + [4]/x^4 + [5]*x",
+            "sigmas_fit_func_dz": "[0] + [1]/x + [2]*x",
+            "abs_max_fit_dphi": 0.015,
+            "abs_max_fit_dz": 7.0
          }
       ],
       "centrality_bins":
