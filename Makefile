@@ -37,10 +37,9 @@ all_libs: 	 CppToolsLib ROOTToolsLib PBarLib CalPhenixLib
 
 # CppTools target groups
 
-CppToolsLib: 	 	 ErrorHandler StrTools Time IOTools Box
+CppToolsLib: 	 	 ErrorHandler StrTools IOTools Box FitTools
 ErrorHandler: 	 	 $(CPP_TOOLS_LIB_DIR)/libErrorHandler.so
 StrTools: 	  	 	 $(CPP_TOOLS_LIB_DIR)/libStrTools.so
-Time: 		  	 	 $(CPP_TOOLS_LIB_DIR)/libTime.so
 IOTools: 	  	 	 $(CPP_TOOLS_LIB_DIR)/libIOTools.so
 Box: 			  	 	 $(CPP_TOOLS_LIB_DIR)/libBox.so
 
@@ -70,10 +69,6 @@ $(CPP_TOOLS_LIB_DIR)/ErrorHandler.o: $(CPP_TOOLS_SRC_DIR)/ErrorHandler.cpp | $(C
 	$(CXX) $< $(CXX_COMMON_LIB) -o $@
 
 $(CPP_TOOLS_LIB_DIR)/StrTools.o: $(CPP_TOOLS_SRC_DIR)/StrTools.cpp | $(CPP_TOOLS_LIB_DIR)
-	@$(ECHO) Building CXX object $@
-	$(CXX) $< $(CXX_COMMON_LIB) -o $@
-
-$(CPP_TOOLS_LIB_DIR)/Time.o: $(CPP_TOOLS_SRC_DIR)/Time.cpp | $(CPP_TOOLS_LIB_DIR)
 	@$(ECHO) Building CXX object $@
 	$(CXX) $< $(CXX_COMMON_LIB) -o $@
 
