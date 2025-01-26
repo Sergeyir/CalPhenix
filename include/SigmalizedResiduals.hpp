@@ -87,10 +87,9 @@ int main(int argc, char **argv);
 void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
                                         const unsigned int variableBin);
 void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
-                               TDirectory *currentOutputDir, const Json::Value& calibrationInput,
-                               const Json::Value& detector, const Json::Value& variable,
-                               const Json::Value& zDCBin, const Json::Value& particleType,
-                               const Json::Value& centralityBin);
+                               const Json::Value& calibrationInput, const Json::Value& detector, 
+                               const Json::Value& variable, const Json::Value& zDCBin, 
+                               const int charge, const Json::Value& centralityBin);
 void PBarCall();
 void SetNumberOfCalls();
 

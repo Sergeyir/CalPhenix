@@ -20,7 +20,7 @@
 #include "../include/SigmalizedResiduals.hpp"
 
 // This program works in 2 modes
-// Mode2 analyzes track residual variables for the specific detector, variable, and particle
+// Mode2 analyzes track residual variables for the specific detector, variable, and charge
 // Mode1 recursively calls the program outside the current process to analyze all configurations
 int main(int argc, char **argv)
 {
@@ -77,8 +77,7 @@ int main(int argc, char **argv)
       Par.numberOfIterations = calibrationInput["detectors_to_calibrate"].size()*
                                calibrationInput["centrality_bins"].size()*
                                calibrationInput["variables_to_calibrate"].size()*
-                               calibrationInput["particles_to_calibrate"].size()*
-                               calibrationInput["zdc_bins"].size();
+                               2* calibrationInput["zdc_bins"].size();
 
       for (const auto& detector : calibrationInput["detectors_to_calibrate"])
       {
@@ -185,30 +184,39 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                                           variableName + ".root").c_str(), 
                                          "RECREATE"));
 
-   // TPad for current thread
-   TVirtualPad *currentPad;
+   // output file in which parameters of approximations will be written
+   std::ofstream parametersOutputMeans(Par.outputDir + "par_" + detectorName + "_" + 
+                                       variableName + "_means.txt");
+   std::ofstream parametersOutputSigmas(Par.outputDir + "par_" + detectorName + "_" + 
+                                        variableName + "_sigmas.txt");
    
-   for (const Json::Value& particle : calibrationInput["particles_to_calibrate"])
+   for (int charge : std::array<int, 2>{1, -1})
    {
-      const std::string particleName = particle["name"].asString();
-      for (const Json::Value& centrality : calibrationInput["centrality_bins"])
+      const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
+      const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
+
+      for (unsigned int centralityBin = 0; centralityBin < 
+           calibrationInput["centrality_bins"].size(); centralityBin++)
       {
+         const Json::Value centrality = calibrationInput["centrality_bins"][centralityBin];
+         
          const std::string centralityRangeName = centrality["min"].asString() + "-" + 
                                                  centrality["max"].asString() + "%"; 
-
+         
          // unique name for this bin to prevent ROOT 
          // printing warnings about replacing same named objects
          const std::string thisBinUniqueName = 
-            detectorName + variableName + particleName + centralityRangeName;
+            detectorName + variableName + chargeName + centralityRangeName;
          
          // same as before but without percent; used for output file names
          const std::string centralityRangePathName = 
             "_c" + centrality["min"].asString() + "-" + centrality["max"].asString();
          
          // TDirectory pointer in output file for the current thread
-         TDirectory *currentOutputTDir = 
-            Par.outputFile->mkdir((detectorName + "/" + variableName + "/" + 
-                                  particleName + "/" + centralityRangePathName).c_str());
+         const std::string outputFileDirName = detectorName + "/" + variableName + "/" + 
+                                               chargeName + "/" + centralityRangePathName;
+         Par.outputFile->mkdir(outputFileDirName.c_str());
+         Par.outputFile->cd(outputFileDirName.c_str());
          
          std::vector<TGraphErrors> grVMeansVsPT, grVSigmasVsPT;
          std::vector<TF1> fVMeansVsPT, fVSigmasVsPT;
@@ -254,7 +262,7 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
             // name of histogram
             const std::string distrVariableName =  
                variableName + " vs pT vs centrality: " + detectorName + ", " + 
-               particleName + ", " + zDCRangeName;
+               chargeName + ", " + zDCRangeName;
             
             TH3F *distrVariable = 
                static_cast<TH3F *>(Par.inputFile->Get(distrVariableName.c_str()));
@@ -266,23 +274,22 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
             }
             
             std::string fitsOutputFileName = Par.outputDir + detectorName + "/" + variableName + 
-                                             "_" + particleName + centralityRangePathName + 
+                                             "_" + chargeName + centralityRangePathName + 
                                              zDCRangePathName;
 
             grVMeansVsPT.emplace_back();
             grVSigmasVsPT.emplace_back();
             
             fVMeansVsPT.emplace_back((zDCRangeName + centralityRangeName + detectorName + 
-                                      particleName + variableName).c_str(), 
+                                      chargeName + variableName).c_str(), 
                                      detector["means_fit"].asCString());
             fVSigmasVsPT.emplace_back((zDCRangeName + centralityRangeName + detectorName + 
-                                       particleName + variableName).c_str(), 
+                                       chargeName + variableName).c_str(), 
                                       detector["sigmas_fit"].asCString());
                            
             PerformFitsForDifferentPT(distrVariable, grVMeansVsPT.back(), grVSigmasVsPT.back(), 
-                                      currentOutputTDir, calibrationInput, detector, variable, 
-                                      zDC, particle, centrality);
-            
+                                      calibrationInput, detector, variable, zDC, charge, centrality);
+
             fVMeansVsPT.back().SetRange(Par.pTMin/1.05, Par.pTMax*1.05);
             fVSigmasVsPT.back().SetRange(Par.pTMin/1.05, Par.pTMax*1.05);
             
@@ -306,6 +313,19 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                                                    (1. + 5./static_cast<double>(j*j)));
                }
             }
+            for (int j = 0; j < fVMeansVsPT.back().GetNpar(); j++)
+            {
+               parametersOutputMeans << fVMeansVsPT.back().GetParameter(j);
+               if (j < fVMeansVsPT.back().GetNpar() - 1) parametersOutputMeans << " ";
+            }
+            parametersOutputMeans << std::endl;
+
+            for (int j = 0; j < fVSigmasVsPT.back().GetNpar(); j++)
+            {
+               parametersOutputSigmas << fVSigmasVsPT.back().GetParameter(j);
+               if (j < fVSigmasVsPT.back().GetNpar() - 1) parametersOutputSigmas << " ";
+            }
+            parametersOutputSigmas << std::endl;
 
             // filling 2D histograms with weights as fit parameters means and sigmas
             for (int j = 0; j < grVMeansVsPT.back().GetN(); j++)
@@ -329,14 +349,11 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                                              grVSigmasVsPT.back().GetPointY(j));
             }
 
-            currentOutputTDir->WriteTObject(grVMeansVsPT.back().Clone(), 
-                                            ("means: " + zDCRangeName).c_str());
-            currentOutputTDir->WriteTObject(grVSigmasVsPT.back().Clone(), 
-                                            ("sigmas: " + zDCRangeName).c_str());
-            currentOutputTDir->WriteTObject(fVMeansVsPT.back().Clone(), 
-                                            ("means fit: " + zDCRangeName).c_str());
-            currentOutputTDir->WriteTObject(fVSigmasVsPT.back().Clone(), 
-                                            ("sigmas fit: " + zDCRangeName).c_str());
+            grVMeansVsPT.back().Clone()->Write(("means: " + zDCRangeName).c_str());
+            grVSigmasVsPT.back().Clone()->Write(("sigmas: " + zDCRangeName).c_str());
+            fVMeansVsPT.back().Clone()->Write(("means fit: " + zDCRangeName).c_str());
+            fVSigmasVsPT.back().Clone()->Write(("sigmas fit: " + zDCRangeName).c_str());
+            
             if (!Par.showProgress)
             {
                std::ofstream progressFile("tmp/SigmalizedResiduals/" + Par.runName + "/" + 
@@ -377,14 +394,14 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
          }
          
          TCanvas canvValVsPTVsZDC("", "", 800, 800);
-         currentPad = canvValVsPTVsZDC.cd();
+         canvValVsPTVsZDC.cd();
          
          TLegend legend{0.15, 0.7, 0.88, 0.89};
          legend.SetNColumns(3);
          legend.SetLineColorAlpha(0, 0.);
          legend.SetFillColorAlpha(0, 0.);
          
-         currentPad->SetLeftMargin(0.135);
+         gPad->SetLeftMargin(0.135);
          
          TH1F meansFrame(("means frame " + thisBinUniqueName).c_str(), "", 
                          10, Par.pTMin - 0.1, Par.pTMax*1.05);
@@ -396,8 +413,8 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
             SetTitle(("#mu_{" + variable["tex_name"].asString() + "}").c_str());
          meansFrame.GetXaxis()->SetTitleOffset(1.1);
          meansFrame.GetYaxis()->SetTitleOffset(2.0);
-         currentPad->Add(meansFrame.Clone(), "AXIS");
-         currentPad->Add(meansFrame.Clone(), "SAME AXIS X+ Y+");
+         gPad->Add(meansFrame.Clone(), "AXIS");
+         gPad->Add(meansFrame.Clone(), "SAME AXIS X+ Y+");
          
          for (unsigned long i = 0; i < calibrationInput["zdc_bins"].size(); i++)
          {
@@ -407,14 +424,14 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                calibrationInput["zdc_bins"][static_cast<int>(i)]["max"].asString();
             
             legend.AddEntry(&grVMeansVsPT[i], zDCRangeName.c_str(), "P");
-            currentPad->Add(grVMeansVsPT[i].Clone(), "SAME P");
-            currentPad->Add(fVMeansVsPT[i].Clone(), "SAME");
+            gPad->Add(grVMeansVsPT[i].Clone(), "SAME P");
+            gPad->Add(fVMeansVsPT[i].Clone(), "SAME");
          }
 
-         currentPad->Add(legend.Clone());
+         gPad->Add(legend.Clone());
          
          PrintCanvas(&canvValVsPTVsZDC, Par.outputDir + detectorName + "_means_" + 
-                     variableName + "_" + particle["name_short"].asString() + 
+                     variableName + "_" + chargeNameShort + 
                      centralityRangePathName);
          
          legend.Clear();
@@ -428,8 +445,8 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
          sigmasFrame.GetXaxis()->SetTitle("p_{T} [GeV/c]");
          sigmasFrame.GetYaxis()->
             SetTitle(("#sigma_{" + variable["tex_name"].asString() + "}").c_str());
-         currentPad->Add(sigmasFrame.Clone(), "AXIS");
-         currentPad->Add(sigmasFrame.Clone(), "SAME AXIS X+ Y+");
+         gPad->Add(sigmasFrame.Clone(), "AXIS");
+         gPad->Add(sigmasFrame.Clone(), "SAME AXIS X+ Y+");
          
          for (unsigned long i = 0; i < calibrationInput["zdc_bins"].size(); i++)
          { 
@@ -439,67 +456,72 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
                calibrationInput["zdc_bins"][static_cast<int>(i)]["max"].asString();
             
             legend.AddEntry(&grVSigmasVsPT[i], zDCRangeName.c_str(), "P");
-            currentPad->Add(grVSigmasVsPT[i].Clone(), "SAME P");
-            currentPad->Add(fVSigmasVsPT[i].Clone(), "SAME");
+            gPad->Add(grVSigmasVsPT[i].Clone(), "SAME P");
+            gPad->Add(fVSigmasVsPT[i].Clone(), "SAME");
          }
 
-         currentPad->Add(legend.Clone());
+         gPad->Add(legend.Clone());
          
          PrintCanvas(&canvValVsPTVsZDC, Par.outputDir + detectorName + "_sigmas_" + 
-                     variableName + "_" + particle["name_short"].asString() + 
+                     variableName + "_" + chargeNameShort + 
                      centralityRangePathName);
          
-         TCanvas parCanv("", "", 800, 800);
-         parCanv.Divide(2, 2);
+         TCanvas canvPar("", "", 800, 800);
+
+         canvPar.Divide(2, 2);
          
-         currentPad = parCanv.cd(1);
-         currentPad->SetRightMargin(0.13);
+         canvPar.cd(1);
+         gPad->SetRightMargin(0.13);
          distrMeansVsZDCVsPT.GetXaxis()->SetTitle(variable["tex_name"].asCString());
          distrMeansVsZDCVsPT.GetYaxis()->SetTitle("p_{T}");
-         currentPad->Add(distrMeansVsZDCVsPT.Clone(), "COLZ");
-
-         currentPad = parCanv.cd(2);
-         currentPad->SetRightMargin(0.13);
+         gPad->Add(distrMeansVsZDCVsPT.Clone(), "COLZ");
+         
+         canvPar.cd(2);
+         gPad->SetRightMargin(0.13);
          distrSigmasVsZDCVsPT.GetXaxis()->SetTitle(variable["tex_name"].asCString());
          distrSigmasVsZDCVsPT.GetYaxis()->SetTitle("p_{T}");
-         currentPad->Add(distrSigmasVsZDCVsPT.Clone(), "COLZ");
-
-         currentPad = parCanv.cd(3);
-         currentPad->SetLogz();
-         currentPad->SetRightMargin(0.13);
+         gPad->Add(distrSigmasVsZDCVsPT.Clone(), "COLZ");
+         
+         canvPar.cd(3);
+         gPad->SetLogz();
+         gPad->SetRightMargin(0.13);
          distrMeansDiffVsZDCVsPT.GetXaxis()->SetTitle(variable["tex_name"].asCString());
          distrMeansDiffVsZDCVsPT.GetYaxis()->SetTitle("p_{T}");
-         currentPad->Add(distrMeansDiffVsZDCVsPT.Clone(), "COLZ");
+         gPad->Add(distrMeansDiffVsZDCVsPT.Clone(), "COLZ");
 
-         currentPad = parCanv.cd(4);
-         currentPad->SetLogz();
-         currentPad->SetRightMargin(0.13);
+         canvPar.cd(4);
+         gPad->SetLogz();
+         gPad->SetRightMargin(0.13);
          distrSigmasDiffVsZDCVsPT.GetXaxis()->SetTitle(variable["tex_name"].asCString());
          distrSigmasDiffVsZDCVsPT.GetYaxis()->SetTitle("p_{T}");
-         currentPad->Add(distrSigmasDiffVsZDCVsPT.Clone(), "COLZ");
+         gPad->Add(distrSigmasDiffVsZDCVsPT.Clone(), "COLZ");
          
-         PrintCanvas(&parCanv, Par.outputDir + detectorName + "/fitPar_" + variableName + "_" + 
-                     particle["name_short"].asString() + centralityRangePathName);
+         PrintCanvas(&canvPar, Par.outputDir + detectorName + "/fitPar_" + variableName + "_" + 
+                     chargeNameShort + centralityRangePathName);
 
-         currentOutputTDir->WriteTObject(distrMeansVsZDCVsPT.Clone(), "means: zDC vs pT");
-         currentOutputTDir->WriteTObject(distrSigmasVsZDCVsPT.Clone(), "sigmas: zDC vs pT");
-         currentOutputTDir->WriteTObject(distrMeansVsZDCVsPT.Clone(), "means: zDC vs pT");
-         currentOutputTDir->WriteTObject(distrSigmasVsZDCVsPT.Clone(), "sigmas: zDC vs pT");
+         distrMeansVsZDCVsPT.Clone()->Write("means: zDC vs pT");
+         distrSigmasVsZDCVsPT.Clone()->Write("sigmas: zDC vs pT");
+         distrMeansVsZDCVsPT.Clone()->Write("means: zDC vs pT");
+         distrSigmasVsZDCVsPT.Clone()->Write("sigmas: zDC vs pT");
       }
    }
-
+   
+   parametersOutputMeans.close();
+   parametersOutputSigmas.close();
    Par.outputFile->Close();
 }
 
 void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &grSigmas,
-                               TDirectory *currentOutputTDir, const Json::Value& calibrationInput,
-                               const Json::Value& detector, const Json::Value& variable,
-                               const Json::Value& zDC, const Json::Value& particle,
-                               const Json::Value& centrality)
+                               const Json::Value& calibrationInput, const Json::Value& detector, 
+                               const Json::Value& variable, const Json::Value& zDC, 
+                               const int charge, const Json::Value& centrality)
 {
    const double minBinX = hist->GetXaxis()->GetBinLowEdge(1);
    const double maxBinX = hist->GetXaxis()->GetBinUpEdge(hist->GetXaxis()->GetNbins());
    const double binWidth = hist->GetXaxis()->GetBinWidth(1);
+
+   const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
+   const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
    const std::string centralityRangeName = centrality["min"].asString() + "-" + 
                                            centrality["max"].asString() + "%";
@@ -510,16 +532,14 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    const std::string zDCRangePathName = "_zDC" + zDC["min"].asString() + 
                                         "-" + zDC["max"].asString();
 
-   // TPad for current thread
-   TVirtualPad *currentPad;
-
-   TCanvas canv("dval vs pT", "", 
+   TCanvas canvDValVsPT("dval vs pT", "", 
                 calibrationInput["pt_nbinsx"].asDouble()*400.,
                 calibrationInput["pt_nbinsy"].asDouble()*400.);
    
-   canv.Divide(calibrationInput["pt_nbinsx"].asInt(), calibrationInput["pt_nbinsy"].asInt());
+   canvDValVsPT.Divide(calibrationInput["pt_nbinsx"].asInt(), 
+                       calibrationInput["pt_nbinsy"].asInt());
  
-   auto PerformFitsInRange = [&](const double pTMin, const double pTMax, 
+   auto PerformFitsInRange = [&](bool saveResultsOnCanvas, const double pTMin, const double pTMax, 
                                  TF1 *meansFit, TF1 *sigmasFit,
                                  TF1 *limitMeansFitFunc = NULL, TF1 *limitSigmasFitFunc = NULL,
                                  bool limitParByFit = false)
@@ -530,17 +550,14 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          grMeans.RemovePoint(i);
          grSigmas.RemovePoint(i);
       }
-
-      int iCanv = 1;
       
+      int iCanv = 1;
+       
       for (const Json::Value& pTBin : calibrationInput["pt_bins"])
       {
          const double pT = Average(pTBin["min"].asDouble(), pTBin["max"].asDouble());
          if (pT < pTMin || pT > pTMax) continue;
-         
-         currentPad = canv.cd(iCanv);
-         iCanv++;
-      
+          
          TH1D *distrVariableProj = hist->
             ProjectionX(((std::string) hist->GetName() + "_projX").c_str(), 
                         hist->GetYaxis()->FindBin(pTBin["min"].asDouble() + 1e-6), 
@@ -555,7 +572,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
              Par.minIntegralValue) 
          {
             PrintInfo("Integral is insufficient for projection of " + variable["name"].asString() + 
-                      ", " + detector["name"].asString() + ", " + particle["name"].asString() + 
+                      ", " + detector["name"].asString() + ", " + chargeName + 
                       " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
             continue;
          }
@@ -582,7 +599,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          if (minX > maxX) 
          {
             PrintWarning("Something wrong for projection of " + variable["name"].asString() + ", " + 
-                         detector["name"].asString() + ", " + particle["name"].asString() + 
+                         detector["name"].asString() + ", " + chargeName + 
                          " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
             continue;
          }
@@ -689,22 +706,29 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          distrVariableProj->SetLineColorAlpha(kBlack, 0.8);
          distrVariableProj->SetMaximum(maxBinVal*1.2);
          
-         currentPad->SetLeftMargin(0.155);
-         currentPad->SetBottomMargin(0.12);
-         
-         currentPad->Add(distrVariableProj->Clone(), "P");
-         currentPad->Add(fitFuncDVal.Clone(), "SAME");
-         currentPad->Add(fitFuncBG.Clone(), "SAME");
-         currentPad->Add(fitFuncGaus.Clone(), "SAME");
-         
-         Par.texText.SetText(0.17, 0.85, pTRangeName.c_str());
-         currentPad->Add(Par.texText.Clone());
-         Par.texText.SetText(0.17, 0.79, zDCRangeName.c_str());
-         currentPad->Add(Par.texText.Clone());
-         Par.texText.SetText(0.17, 0.73, particle["name"].asCString());
-         currentPad->Add(Par.texText.Clone());
-         Par.texText.SetText(0.17, 0.66, centralityRangeName.c_str());
-         currentPad->Add(Par.texText.Clone());
+         if (saveResultsOnCanvas) 
+         {
+            canvDValVsPT.cd(iCanv);
+            
+            gPad->SetLeftMargin(0.155);
+            gPad->SetBottomMargin(0.12);
+            
+            gPad->Add(distrVariableProj->Clone(), "P");
+            gPad->Add(fitFuncDVal.Clone(), "SAME");
+            gPad->Add(fitFuncBG.Clone(), "SAME");
+            gPad->Add(fitFuncGaus.Clone(), "SAME");
+            
+            Par.texText.SetText(0.17, 0.85, pTRangeName.c_str());
+            gPad->Add(Par.texText.Clone());
+            Par.texText.SetText(0.17, 0.79, zDCRangeName.c_str());
+            gPad->Add(Par.texText.Clone());
+            Par.texText.SetText(0.17, 0.73, chargeName.c_str());
+            gPad->Add(Par.texText.Clone());
+            Par.texText.SetText(0.17, 0.66, centralityRangeName.c_str());
+            gPad->Add(Par.texText.Clone());
+         }
+
+         iCanv++;
          
          if (fabs(fitFuncDVal.GetParameter(1)) < variable["abs_max_fit_val"].asDouble() && 
              fabs(fitFuncDVal.GetParameter(2)) < variable["abs_max_fit_val"].asDouble())
@@ -719,7 +743,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       if (grMeans.GetN() == 0) 
       {
          PrintError("Graph is empty for " + variable["name"].asString() + ", " + 
-                    detector["name"].asString() + ", " + particle["name"].asString() + 
+                    detector["name"].asString() + ", " + chargeName + 
                     " at " + zDCRangeName + ", " + centralityRangeName);
       }
       
@@ -735,7 +759,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    
    for (const Json::Value& pT : calibrationInput["consequetive_pt_fit_ranges"])
    {
-      PerformFitsInRange(pT["min"].asDouble(), pT["max"].asDouble(), &meansFit, &sigmasFit);
+      PerformFitsInRange(false, pT["min"].asDouble(), pT["max"].asDouble(), &meansFit, &sigmasFit);
    }
 
    TF1 *oldMeansFit = (TF1 *) meansFit.Clone();
@@ -744,15 +768,15 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    meansFit.SetCurrent((TF1 *) TF1("meansFit", detector["means_fit"].asCString()).Clone());
    sigmasFit.SetCurrent((TF1 *) TF1("sigmasFit", detector["sigmas_fit"].asCString()).Clone());
 
-   PerformFitsInRange(calibrationInput["pt_bins"].front()["min"].asDouble()/1.05, 
+   PerformFitsInRange(true, calibrationInput["pt_bins"].front()["min"].asDouble()/1.05, 
                       calibrationInput["pt_bins"].back()["max"].asDouble()*1.05, 
                       &meansFit, &sigmasFit, oldMeansFit, oldSigmasFit, true);
    
    const std::string outputFileNameNoExt = 
       "output/SigmalizedResiduals/" + Par.runName + "/" + detector["name"].asString() + "/" + 
-      variable["name"].asString() + "_" + particle["name_short"].asString() + 
+      variable["name"].asString() + "_" + chargeNameShort + 
       centralityRangePathName + zDCRangePathName;
-   PrintCanvas(&canv, outputFileNameNoExt, false, true);
+   PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false, true);
 }
 
 void PBarCall()
@@ -763,7 +787,7 @@ void PBarCall()
       SetNumberOfCalls();
       pBar.Print(static_cast<double>(Par.numberOfCalls)/
                  static_cast<double>(Par.numberOfIterations));
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
    }
    pBar.Print(1.);
 };

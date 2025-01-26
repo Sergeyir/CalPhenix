@@ -11,11 +11,6 @@
          {"name": "dphi", "tex_name": "d#varphi", "abs_max_fit_val": 0.015},
          {"name": "dz", "tex_name": "dz_{DC}", "abs_max_fit_val": 7.0}
       ],
-      "particles_to_calibrate":
-      [
-         {"name": "charge>0", "name_short": "pos"},
-         {"name": "charge<0", "name_short": "neg"}
-      ],
       "detectors_to_calibrate":
       [
          {
