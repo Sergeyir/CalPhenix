@@ -9,7 +9,7 @@
          "name": "EMCale0", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0])",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0])",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -18,7 +18,7 @@
          "name": "EMCale1", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0])",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]*(x[0]*x[0]*x[0]) + par[4]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -27,7 +27,7 @@
          "name": "EMCale2", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + par[2]*x[0] + exp(par[3] + par[4]*x[0])",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -36,7 +36,7 @@
          "name": "EMCale3", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -45,7 +45,7 @@
          "name": "EMCalw0", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -54,7 +54,7 @@
          "name": "EMCalw1", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -63,7 +63,7 @@
          "name": "EMCalw2", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -72,7 +72,7 @@
          "name": "EMCalw3", 
          "means_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
          "sigmas_fit_func_dphi": "par[0] + par[1]/x[0] + par[2]*x[0]",
-         "means_fit_func_dz": "par[0] + par[1]/x[0] + par[2]/(x[0]*x[0]) + par[3]/(x[0]*x[0]*x[0]) + par[4]/(x[0]*x[0]*x[0]*x[0]) + par[5]*x[0]",
+         "means_fit_func_dz": "par[0] + par[1]/(x[0]*x[0]) + exp(par[2] + par[3]*x[0]) + par[4]*x[0]",
          "sigmas_fit_func_dz": "par[0] + par[1]/x[0] + par[2]*x[0]",
          "abs_max_fit_dphi": 0.015,
          "abs_max_fit_dz": 7.0
@@ -135,9 +135,5 @@
       {"min": 2.5, "max": 3.0}
    ],
    "pt_nbinsx": 5,
-   "pt_nbinsy": 4,
-   "consequetive_pt_fit_ranges":
-   [
-      {"min": 0.2, "max": 3.1}
-   ]
+   "pt_nbinsy": 4
 }

@@ -121,7 +121,6 @@ int main(int argc, char **argv)
       
       Par.isProcessFinished = true;
       pBarThr.join();
-      Print("Finished");
    }
    else // Mode2
    {
@@ -302,61 +301,100 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
 
             fVMeansVsPT.back().SetRange(Par.pTMin/1.05, Par.pTMax*1.05);
             fVSigmasVsPT.back().SetRange(Par.pTMin/1.05, Par.pTMax*1.05);
-            
-            for (short j = 1; j <= Par.fitNTries; j++)
+
+            // these TGraphsError will be fitted instead of actual ones; this is due to the fact
+            // that some weights are really big for some points, usually somewhere in the middle.
+            // This makes ROOT almost ignore other points and perform uncanny fits.
+            // The idea behind these copies is that all points will have equal weight except for
+            // those that have large uncertainty and they will have smaller weight. This will
+            // allow for ROOT to not bother about some inconsistent points that "jumped out" of the 
+            // distribution and not to overestimate very small weight points.
+            TGraphErrors meansVsPTForFit(grVMeansVsPT.back());
+            TGraphErrors sigmasVsPTForFit(grVSigmasVsPT.back());
+
+            for (int i = 0; i < meansVsPTForFit.GetN(); i++)
             {
-               grVMeansVsPT.back().Fit(&fVMeansVsPT.back(), "RQMBNW");
-               grVSigmasVsPT.back().Fit(&fVSigmasVsPT.back(), "RQMBNW");
-               
-               for (int k = 0; k < fVMeansVsPT.back().GetNpar(); k++)
+               if (meansVsPTForFit.GetErrorY(i) > sigmasVsPTForFit.GetPointY(i)/10.)
                {
-                  fVMeansVsPT.back().SetParLimits(k, fVMeansVsPT.back().GetParameter(k)/
-                                                  (1. + 5./static_cast<double>(j*j)),
-                                                  fVMeansVsPT.back().GetParameter(k)*
-                                                  (1. + 5./static_cast<double>(j*j)));
+                  meansVsPTForFit.SetPointError(i, 0., meansVsPTForFit.GetErrorY(i)/
+                                                meansVsPTForFit.GetPointY(i));
                }
-               for (int k = 0; k < fVSigmasVsPT.back().GetNpar(); k++)
+               else
                {
-                  fVSigmasVsPT.back().SetParLimits(k, fVSigmasVsPT.back().GetParameter(k)/
-                                                   (1. + 5./static_cast<double>(j*j)),
-                                                   fVSigmasVsPT.back().GetParameter(k)*
-                                                   (1. + 5./static_cast<double>(j*j)));
+                  meansVsPTForFit.SetPointError(i, 0., 1.);
+               }
+               
+               if (sigmasVsPTForFit.GetErrorY(i) > sigmasVsPTForFit.GetPointY(i)/10.)
+               {
+                  sigmasVsPTForFit.SetPointError(i, 0., sigmasVsPTForFit.GetErrorY(i)/
+                                                sigmasVsPTForFit.GetPointY(i));
+               }
+               else
+               {
+                  sigmasVsPTForFit.SetPointError(i, 0., 1.);
                }
             }
-            for (int j = 0; j < fVMeansVsPT.back().GetNpar(); j++)
+            
+            for (unsigned int i = 1; i <= Par.fitNTries; i++)
             {
-               parametersOutputMeans << fVMeansVsPT.back().GetParameter(j);
-               if (j < fVMeansVsPT.back().GetNpar() - 1) parametersOutputMeans << " ";
+               meansVsPTForFit.Fit(&fVMeansVsPT.back(), "RQMBN");
+               sigmasVsPTForFit.Fit(&fVSigmasVsPT.back(), "RQMBN");
+               
+               for (int j = 0; j < fVMeansVsPT.back().GetNpar(); j++)
+               {
+                  fVMeansVsPT.back().SetParLimits(j, fVMeansVsPT.back().GetParameter(j)*
+                                                  (1. - 6./static_cast<double>(i*i*i)),
+                                                  fVMeansVsPT.back().GetParameter(j)*
+                                                  (1. + 4./static_cast<double>(i*i*i)));
+               }
+               for (int j = 0; j < fVSigmasVsPT.back().GetNpar(); j++)
+               {
+                  fVSigmasVsPT.back().SetParLimits(j, fVSigmasVsPT.back().GetParameter(j)*
+                                                   (1. - 6./static_cast<double>(i*i*i)),
+                                                   fVSigmasVsPT.back().GetParameter(j)*
+                                                   (1. + 4./static_cast<double>(i*i*i)));
+               }
+            }
+            
+            /*
+            grVMeansVsPT.back().Fit(&fVMeansVsPT.back(), "RQMBN");
+            grVSigmasVsPT.back().Fit(&fVSigmasVsPT.back(), "RQMBN");
+            */
+            
+            for (int i = 0; i < fVMeansVsPT.back().GetNpar(); i++)
+            {
+               parametersOutputMeans << fVMeansVsPT.back().GetParameter(i);
+               if (i < fVMeansVsPT.back().GetNpar() - 1) parametersOutputMeans << " ";
             }
             parametersOutputMeans << std::endl;
 
-            for (int j = 0; j < fVSigmasVsPT.back().GetNpar(); j++)
+            for (int i = 0; i < fVSigmasVsPT.back().GetNpar(); i++)
             {
-               parametersOutputSigmas << fVSigmasVsPT.back().GetParameter(j);
-               if (j < fVSigmasVsPT.back().GetNpar() - 1) parametersOutputSigmas << " ";
+               parametersOutputSigmas << fVSigmasVsPT.back().GetParameter(i);
+               if (i < fVSigmasVsPT.back().GetNpar() - 1) parametersOutputSigmas << " ";
             }
             parametersOutputSigmas << std::endl;
 
             // filling 2D histograms with weights as fit parameters means and sigmas
-            for (int j = 0; j < grVMeansVsPT.back().GetN(); j++)
+            for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
             {
-               const double x = grVMeansVsPT.back().GetPointX(j);
+               const double x = grVMeansVsPT.back().GetPointX(i);
                const int xBin = 
                   distrMeansVsZDCVsPT.GetXaxis()->FindBin(Average(zDCMin, zDCMax));
                const int yBin = distrMeansVsZDCVsPT.GetYaxis()->FindBin(x);
                
                distrMeansVsZDCVsPT.
-                  SetBinContent(xBin, yBin, grVMeansVsPT.back().GetPointY(j));
+                  SetBinContent(xBin, yBin, grVMeansVsPT.back().GetPointY(i));
                distrSigmasVsZDCVsPT.
-                  SetBinContent(xBin, yBin, grVSigmasVsPT.back().GetPointY(j));
+                  SetBinContent(xBin, yBin, grVSigmasVsPT.back().GetPointY(i));
                distrMeansDiffVsZDCVsPT.SetBinContent(xBin, yBin, 
-                                            fabs((grVMeansVsPT.back().GetPointY(j) - 
+                                            fabs((grVMeansVsPT.back().GetPointY(i) - 
                                                   fVMeansVsPT.back().Eval(x))/
-                                                 grVMeansVsPT.back().GetPointY(j)));
+                                                 grVMeansVsPT.back().GetPointY(i)));
                distrSigmasDiffVsZDCVsPT.SetBinContent(xBin, yBin, 
-                                             fabs(grVSigmasVsPT.back().GetPointY(j) - 
+                                             fabs(grVSigmasVsPT.back().GetPointY(i) - 
                                                   fVSigmasVsPT.back().Eval(x))/
-                                             grVSigmasVsPT.back().GetPointY(j));
+                                             grVSigmasVsPT.back().GetPointY(i));
             }
 
             grVMeansVsPT.back().Write(("means: " + zDCRangeName).c_str());
@@ -551,246 +589,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    canvDValVsPT.Divide(Par.inputJSONCal["pt_nbinsx"].asInt(), 
                        Par.inputJSONCal["pt_nbinsy"].asInt());
 
-   // vectors are needed for the object to not be deleted out of scope which 
-   // would result in deleting it from canvas
-   std::vector<TF1> fitFuncDVal, fitFuncGaus, fitFuncBG;
- 
-   auto PerformFitsInRange = [&](bool saveResultsOnCanvas, const double pTMin, const double pTMax, 
-                                 TF1 *meansFit, TF1 *sigmasFit,
-                                 TF1 *limitMeansFitFunc = NULL, TF1 *limitSigmasFitFunc = NULL,
-                                 bool limitParByFit = false)
-   {
-      // clearing the graphs after previous fits
-      for (int i = grMeans.GetN() - 1; i >= 0; i--)
-      {
-         grMeans.RemovePoint(i);
-         grSigmas.RemovePoint(i);
-      }
 
-      int iCanv = 1;
-       
-      for (const Json::Value& pTBin : Par.inputJSONCal["pt_bins"])
-      {
-         const double pT = Average(pTBin["min"].asDouble(), pTBin["max"].asDouble());
-         if (pT < pTMin || pT > pTMax) continue;
-          
-         TH1D *distrVariableProj = hist->
-            ProjectionX(((std::string) hist->GetName() + "_projX_" + std::to_string(pT)).c_str(), 
-                        hist->GetYaxis()->FindBin(pTBin["min"].asDouble() + 1e-6), 
-                        hist->GetYaxis()->FindBin(pTBin["max"].asDouble() - 1e-6),
-                        hist->GetZaxis()->FindBin(centrality["min"].asDouble() + 1e-6),
-                        hist->GetZaxis()->FindBin(centrality["max"].asDouble() - 1e-6));
-
-         const std::string pTRangeName = DtoStr(pTBin["min"].asDouble(), 1) + "<pT<" + 
-                                         DtoStr(pTBin["max"].asDouble(), 1);
-         
-         if (distrVariableProj->Integral(1, distrVariableProj->GetXaxis()->GetNbins()) < 
-             Par.minIntegralValue) 
-         {
-            PrintInfo("Integral is insufficient for projection of " + variableName 
-                      + ", " + detector["name"].asString() + ", " + chargeName + 
-                      " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
-            continue;
-         }
-         
-         double minX = 0., maxX = -1.;
-         for (int k = 1; k <= distrVariableProj->GetXaxis()->GetNbins(); k++)
-         {
-            if (distrVariableProj->GetBinContent(k) > 1e-7)
-            {
-               minX = distrVariableProj->GetXaxis()->GetBinLowEdge(k);
-               break;
-            }
-         }
-         
-         for (int k = distrVariableProj->GetXaxis()->GetNbins(); k > 1; k--)
-         {
-            if (distrVariableProj->GetBinContent(k) > 1e-7)
-            {
-               maxX = distrVariableProj->GetXaxis()->GetBinUpEdge(k);
-               break;
-            }
-         }
-         
-         if (minX > maxX) 
-         {
-            PrintWarning("Something wrong for projection of " + variableName + 
-                         ", " + detector["name"].asString() + ", " + chargeName + 
-                         " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
-            continue;
-         }
-
-         fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
-         fitFuncDVal.emplace_back(("fitFunc_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
-         fitFuncBG.emplace_back(("fitBg_" + std::to_string(pT)).c_str(), "gaus");
-         fitFuncGaus.back().SetParameters(1., 0., binWidth*2.);
-         fitFuncDVal.back().SetParameters(1., 0., binWidth*2., 1., 0., maxX/2.);
-         
-         if (!limitParByFit)
-         {
-            fitFuncGaus.back().SetParLimits(1, minBinX/5., maxBinX/5.);
-            fitFuncGaus.back().SetParLimits(2, binWidth, maxBinX/5.);
-            fitFuncDVal.back().SetParLimits(1, minX/10., maxX/10.);
-            fitFuncDVal.back().SetParLimits(2, binWidth, Average(maxX, maxX, minX));
-         }
-         else
-         {
-            fitFuncGaus.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)*(-1.5), 
-                                            limitMeansFitFunc->Eval(pT)*2.);
-            fitFuncGaus.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)*(-1.5), 
-                                            limitSigmasFitFunc->Eval(pT)*2.);
-            fitFuncDVal.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)*(-1.5), 
-                                            limitMeansFitFunc->Eval(pT)*2.);
-            fitFuncDVal.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)*(-1.5), 
-                                            limitSigmasFitFunc->Eval(pT)*2.);
-         }
-         
-         fitFuncDVal.back().SetParLimits(4, minX*2., maxX*2.);
-         fitFuncDVal.back().SetParLimits(5, maxX/3., maxX*3.);
-         
-         fitFuncDVal.back().SetLineColorAlpha(kRed+1, 0.6);
-         fitFuncBG.back().SetLineColorAlpha(kGreen+1, 0.9);
-         fitFuncBG.back().SetLineStyle(2);
-         fitFuncGaus.back().SetLineColorAlpha(kAzure-3, 0.9);
-         fitFuncGaus.back().SetLineStyle(2);
-
-         distrVariableProj->GetXaxis()->SetTitle(Par.variableNameTex[variableBin].c_str());
-         distrVariableProj->SetTitle("");
-         distrVariableProj->SetTitleSize(0.06, "X");
-         distrVariableProj->SetTitleSize(0.06, "Y");
-         distrVariableProj->SetLabelSize(0.06, "X");
-         distrVariableProj->SetLabelSize(0.06, "Y");
-    
-         distrVariableProj->GetXaxis()->SetRange(distrVariableProj->GetXaxis()->FindBin(minX+0.01),
-                                                 distrVariableProj->GetXaxis()->FindBin(maxX-0.01));
-         
-         const double maxBinVal = 
-            distrVariableProj->GetBinContent(distrVariableProj->GetMaximumBin());
-         
-         // scale limits
-         fitFuncGaus.back().SetParLimits(0, maxBinVal/5., maxBinVal);
-         fitFuncDVal.back().SetParLimits(0, maxBinVal/5., maxBinVal);
-         fitFuncDVal.back().SetParLimits(3, maxBinVal/20., maxBinVal);
-         
-         fitFuncGaus.back().SetRange(minBinX/5., maxBinX/5.);
-         
-         distrVariableProj->Fit(&fitFuncGaus.back(), "RQMBN");
-
-         fitFuncGaus.back().SetRange(minBinX, maxBinX);
-         fitFuncBG.back().SetRange(minBinX, maxBinX);
-         
-         for (int k = 0; k < 3; k++)
-         {
-            fitFuncDVal.back().SetParameter(k, fitFuncGaus.back().GetParameter(k));
-         }
-         
-         fitFuncDVal.back().SetRange(minBinX, maxBinX);
-         distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBN");
-
-         for (unsigned short j = 1; j <= Par.fitNTries; j++)
-         {
-            for (int k = 1; k < fitFuncDVal.back().GetNpar(); k++)
-            {
-               if (k == 3) continue; // it is better not to vary scaling limits
-               
-               if (k != 2) // sigmas cannot be negative 
-               {
-                  fitFuncDVal.back().SetParLimits(k, fitFuncDVal.back().GetParameter(k)*
-                                                  (1. - 6./static_cast<double>(j*j)),
-                                                  fitFuncDVal.back().GetParameter(k)*
-                                                  (1. + 4./static_cast<double>(j*j)));
-               }
-               else
-               {
-                  fitFuncDVal.back().SetParLimits(k, fitFuncDVal.back().GetParameter(k)/
-                                                  (1. + 5./static_cast<double>(j*j)),
-                                                  fitFuncDVal.back().GetParameter(k)*
-                                                  (1. + 5./static_cast<double>(j*j)));
-               }
-
-            }
-            
-            distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBN");
-            /*
-            fitFuncBG.back().
-               SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2)*5, 
-                        fitFuncDVal.back().GetParameter(1) + fitFuncDVal.back().GetParameter(2)*5);
-                        */
-         }
-         
-         for (int j = 0; j < 3; j++)
-         {
-            fitFuncGaus.back().SetParameter(j, fitFuncDVal.back().GetParameter(j));
-            fitFuncBG.back().SetParameter(j, fitFuncDVal.back().GetParameter(j + 3));
-         }
-         
-         distrVariableProj->SetMarkerStyle(20);
-         distrVariableProj->SetMarkerSize(0.7);
-         distrVariableProj->SetMarkerColorAlpha(kBlack, 0.8);
-         distrVariableProj->SetLineColorAlpha(kBlack, 0.8);
-         distrVariableProj->SetMaximum(maxBinVal*1.2);
-         
-         if (saveResultsOnCanvas) 
-         {
-            canvDValVsPT.cd(iCanv);
-            
-            gPad->SetLeftMargin(0.155);
-            gPad->SetBottomMargin(0.12);
-            
-            gPad->Add(distrVariableProj, "P");
-            gPad->Add(&fitFuncDVal.back(), "SAME");
-            gPad->Add(&fitFuncBG.back(), "SAME");
-            gPad->Add(&fitFuncGaus.back(), "SAME");
-            
-            Par.texText.SetText(0.17, 0.85, pTRangeName.c_str());
-            gPad->Add(Par.texText.Clone());
-            Par.texText.SetText(0.17, 0.79, zDCRangeName.c_str());
-            gPad->Add(Par.texText.Clone());
-            Par.texText.SetText(0.17, 0.73, chargeName.c_str());
-            gPad->Add(Par.texText.Clone());
-            Par.texText.SetText(0.17, 0.66, centralityRangeName.c_str());
-            gPad->Add(Par.texText.Clone());
-         }
-
-         iCanv++;
-         
-         if (fabs(fitFuncDVal.back().GetParameter(1)) < 
-             detector["abs_max_fit_" + variableName].asDouble() && 
-             fabs(fitFuncDVal.back().GetParameter(2)) < 
-             detector["abs_max_fit_" + variableName].asDouble())
-         {
-            grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
-            grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
-            
-            //grMeans.SetPointError(grMeans.GetN() - 1, 0, fitFuncDVal.back().GetParError(1));
-            //grSigmas.SetPointError(grSigmas.GetN() - 1, 0, fitFuncDVal.back().GetParError(2));
-         }
-      }
-      if (grMeans.GetN() == 0) 
-      {
-         PrintError("Graph is empty for " + variableName + ", " + 
-                    detector["name"].asString() + ", " + chargeName + 
-                    " at " + zDCRangeName + ", " + centralityRangeName);
-      }
-      
-      meansFit->SetRange(pTMin, pTMax);
-      sigmasFit->SetRange(pTMin, pTMax);
-      
-      grMeans.Fit(meansFit, "RQMBNW");
-      grSigmas.Fit(sigmasFit, "RQMBNW");
-   };
-   
-   /*
-   TF1 meansFitPrelim("meansFitPrelim", Par.meansFitPrelimFunc.c_str());
-   TF1 sigmasFitPrelim("sigmasFitPrelim", Par.sigmasFitPrelimFunc.c_str());
-   
-   for (const Json::Value& pT : Par.inputJSONCal["consequetive_pt_fit_ranges"])
-   {
-      PerformFitsInRange(false, pT["min"].asDouble(), pT["max"].asDouble(), 
-                         &meansFitPrelim, &sigmasFitPrelim);
-   }
-   */
-   
    // lambda expressions for TF1
    const std::string meansFitFunc = 
       "[](double *x, double *par) {return " + 
@@ -802,14 +601,287 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    TF1 meansFit("meansFit", meansFitFunc.c_str(), 0., 1., GetNumberOfParameters(meansFitFunc));
    TF1 sigmasFit("sigmasFit", sigmasFitFunc.c_str(), 0., 1., GetNumberOfParameters(sigmasFitFunc));
 
-   PerformFitsInRange(true, Par.inputJSONCal["pt_bins"].front()["min"].asDouble()/1.05, 
-                      Par.inputJSONCal["pt_bins"].back()["max"].asDouble()*1.05, 
-                      &meansFit, &sigmasFit);
+   // functions for fits of dz and dphi distributions
+   // vectors are needed for the object to not be deleted out of scope which 
+   // would result in deleting it from canvas
+   std::vector<TF1> fitFuncDVal, fitFuncGaus, fitFuncBG;
+   // alternate fits in different region for estimation of uncertainty
+ 
+   int iCanv = 1;
+    
+   for (const Json::Value& pTBin : Par.inputJSONCal["pt_bins"])
+   {
+      const double pT = Average(pTBin["min"].asDouble(), pTBin["max"].asDouble());
+      if (pT < Par.pTMin || pT > Par.pTMax) continue;
+       
+      TH1D *distrVariableProj = hist->
+         ProjectionX(((std::string) hist->GetName() + "_projX_" + std::to_string(pT)).c_str(), 
+                     hist->GetYaxis()->FindBin(pTBin["min"].asDouble() + 1e-6), 
+                     hist->GetYaxis()->FindBin(pTBin["max"].asDouble() - 1e-6),
+                     hist->GetZaxis()->FindBin(centrality["min"].asDouble() + 1e-6),
+                     hist->GetZaxis()->FindBin(centrality["max"].asDouble() - 1e-6));
+
+      const std::string pTRangeName = DtoStr(pTBin["min"].asDouble(), 1) + "<pT<" + 
+                                      DtoStr(pTBin["max"].asDouble(), 1);
+      
+      if (distrVariableProj->Integral(1, distrVariableProj->GetXaxis()->GetNbins()) < 
+          Par.minIntegralValue) 
+      {
+         PrintInfo("Integral is insufficient for projection of " + variableName 
+                   + ", " + detector["name"].asString() + ", " + chargeName + 
+                   " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
+         continue;
+      }
+      
+      double minX = 0., maxX = -1.;
+      for (int i = 1; i <= distrVariableProj->GetXaxis()->GetNbins(); i++)
+      {
+         if (distrVariableProj->GetBinContent(i) > 1e-7)
+         {
+            minX = distrVariableProj->GetXaxis()->GetBinLowEdge(i);
+            break;
+         }
+      }
+      
+      for (int i = distrVariableProj->GetXaxis()->GetNbins(); i > 1; i--)
+      {
+         if (distrVariableProj->GetBinContent(i) > 1e-7)
+         {
+            maxX = distrVariableProj->GetXaxis()->GetBinUpEdge(i);
+            break;
+         }
+      }
+      
+      if (minX > maxX) 
+      {
+         PrintWarning("Something wrong for projection of " + variableName + 
+                      ", " + detector["name"].asString() + ", " + chargeName + 
+                      " at " + zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
+         continue;
+      }
+
+      const double maxBinVal = 
+         distrVariableProj->GetBinContent(distrVariableProj->GetMaximumBin());
+
+      fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
+      fitFuncDVal.emplace_back(("fitFuncDVal_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
+      fitFuncBG.emplace_back(("fitBg_" + std::to_string(pT)).c_str(), "gaus");
+         
+      // scale limits
+      fitFuncGaus.back().SetParLimits(0, maxBinVal/5., maxBinVal);
+      fitFuncDVal.back().SetParLimits(0, maxBinVal/5., maxBinVal);
+      fitFuncDVal.back().SetParLimits(3, maxBinVal/20., maxBinVal);
+
+      std::vector<TF1> fitFuncDValAlt;
+      
+      for (unsigned long i = 0; i < 4; i++)
+      {
+         fitFuncDValAlt.emplace_back(("fitFuncDValAlt_" + std::to_string(i) + 
+                                         "_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
+         fitFuncDValAlt.back().SetParLimits(0, maxBinVal/5., maxBinVal);
+         fitFuncDValAlt.back().SetParLimits(3, maxBinVal/20., maxBinVal);
+      }
+
+      fitFuncGaus.back().SetParameters(1., 0., binWidth*2.);
+      fitFuncDVal.back().SetParameters(1., 0., binWidth*2., 1., 0., maxX/2.);
+      
+      fitFuncGaus.back().SetParLimits(1, minBinX/5., maxBinX/5.);
+      fitFuncGaus.back().SetParLimits(2, binWidth, maxBinX/5.);
+      fitFuncDVal.back().SetParLimits(1, minX/10., maxX/10.);
+      fitFuncDVal.back().SetParLimits(2, binWidth, Average(maxX, maxX, minX));
+      
+      fitFuncDVal.back().SetParLimits(4, minX*2., maxX*2.);
+      fitFuncDVal.back().SetParLimits(5, maxX/3., maxX*3.);
+      
+      fitFuncDVal.back().SetLineColorAlpha(kRed+1, 0.6);
+      fitFuncBG.back().SetLineColorAlpha(kGreen+1, 0.9);
+      fitFuncBG.back().SetLineStyle(2);
+      fitFuncGaus.back().SetLineColorAlpha(kAzure-3, 0.9);
+      fitFuncGaus.back().SetLineStyle(2);
+
+      distrVariableProj->GetXaxis()->SetTitle(Par.variableNameTex[variableBin].c_str());
+      distrVariableProj->SetTitle("");
+      distrVariableProj->SetTitleSize(0.06, "X");
+      distrVariableProj->SetTitleSize(0.06, "Y");
+      distrVariableProj->SetLabelSize(0.06, "X");
+      distrVariableProj->SetLabelSize(0.06, "Y");
+ 
+      distrVariableProj->GetXaxis()->SetRange(distrVariableProj->GetXaxis()->FindBin(minX+0.01),
+                                              distrVariableProj->GetXaxis()->FindBin(maxX-0.01));
+
+      //distrVariableProj->Sumw2();
+       
+      fitFuncGaus.back().SetRange(minBinX/5., maxBinX/5.);
+      
+      distrVariableProj->Fit(&fitFuncGaus.back(), "RQMBN");
+ 
+      for (int i = 0; i < 3; i++)
+      {
+         fitFuncDVal.back().SetParameter(i, fitFuncGaus.back().GetParameter(i));
+      }
+      
+      fitFuncDVal.back().SetRange(minBinX, maxBinX);
+      distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBN");
+
+      // fit range
+      int fitRangeXMinBin = 
+         distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) - 
+                                                fitFuncDVal.back().GetParameter(2)*5.);
+      int fitRangeXMaxBin = 
+         distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) + 
+                                                fitFuncDVal.back().GetParameter(2)*5.);
+      double fitRangeXMin = distrVariableProj->GetXaxis()->GetBinLowEdge(fitRangeXMinBin);
+      double fitRangeXMax = distrVariableProj->GetXaxis()->GetBinUpEdge(fitRangeXMaxBin);
+
+      for (unsigned short i = 1; i <= Par.fitNTries; i++)
+      {
+         fitFuncDVal.back().SetParLimits(0, fitFuncDVal.back().GetParameter(0)/
+                                         (1. + 2./static_cast<double>(i*i*i)),
+                                         fitFuncDVal.back().GetParameter(0)*
+                                         (1. + 2./static_cast<double>(i*i*i)));
+         fitFuncDVal.back().SetParLimits(1, fitFuncDVal.back().GetParameter(1)*
+                                         (1. - 6./static_cast<double>(i*i*i)),
+                                         fitFuncDVal.back().GetParameter(1)*
+                                         (1. + 4./static_cast<double>(i*i*i)));
+         fitFuncDVal.back().SetParLimits(2, fitFuncDVal.back().GetParameter(2)/
+                                         (1. + 5./static_cast<double>(i*i*i)),
+                                         fitFuncDVal.back().GetParameter(2)*
+                                         (1. + 5./static_cast<double>(i*i*i)));
+         fitFuncDVal.back().SetParLimits(3, fitFuncDVal.back().GetParameter(3)/
+                                         (1. + 5./static_cast<double>(i*i)),
+                                         fitFuncDVal.back().GetParameter(3)*
+                                         (1. + 5./static_cast<double>(i*i)));
+         fitFuncDVal.back().SetParLimits(4, fitFuncDVal.back().GetParameter(4)*
+                                         (1. - 6./static_cast<double>(i*i)),
+                                         fitFuncDVal.back().GetParameter(4)*
+                                         (1. + 4./static_cast<double>(i*i)));
+         fitFuncDVal.back().SetParLimits(5, fitFuncDVal.back().GetParameter(5)/
+                                         (1. + 5./static_cast<double>(i*i)),
+                                         fitFuncDVal.back().GetParameter(5)*
+                                         (1. + 5./static_cast<double>(i*i)));
+         
+         fitRangeXMinBin = 
+            distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) - 
+                                                   fitFuncDVal.back().GetParameter(2)*5.);
+         fitRangeXMaxBin = 
+            distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) + 
+                                                   fitFuncDVal.back().GetParameter(2)*5.);
+         
+         fitRangeXMin = distrVariableProj->GetXaxis()->GetBinLowEdge(fitRangeXMinBin);
+         fitRangeXMax = distrVariableProj->GetXaxis()->GetBinUpEdge(fitRangeXMaxBin);
+            
+         fitFuncDVal.back().SetRange(fitRangeXMin, fitRangeXMax);
+         distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBNL");
+      }
+
+      fitFuncGaus.back().SetRange(fitRangeXMin, fitRangeXMax);
+      fitFuncBG.back().SetRange(fitRangeXMin, fitRangeXMax);
+
+      fitRangeXMinBin = 
+         distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) - 
+                                                fitFuncDVal.back().GetParameter(2)*10.);
+      fitRangeXMaxBin = 
+         distrVariableProj->GetXaxis()->FindBin(fitFuncDVal.back().GetParameter(1) + 
+                                                fitFuncDVal.back().GetParameter(2)*10.);
+      distrVariableProj->GetXaxis()->SetRange(fitRangeXMinBin, fitRangeXMaxBin);
+       
+      for (int i = 0; i < 3; i++)
+      {
+         fitFuncGaus.back().SetParameter(i, fitFuncDVal.back().GetParameter(i));
+         fitFuncBG.back().SetParameter(i, fitFuncDVal.back().GetParameter(i + 3));
+      }
+      
+      distrVariableProj->SetMarkerStyle(20);
+      distrVariableProj->SetMarkerSize(0.7);
+      distrVariableProj->SetMarkerColorAlpha(kBlack, 0.8);
+      distrVariableProj->SetLineColorAlpha(kBlack, 0.8);
+      distrVariableProj->SetMaximum(maxBinVal*1.2);
+      
+      canvDValVsPT.cd(iCanv);
+      
+      gPad->SetLeftMargin(0.155);
+      gPad->SetBottomMargin(0.128);
+      
+      gPad->Add(distrVariableProj, "P");
+      //Print(fitFuncDVal.back().GetName(), fitFuncBG.back().GetName(), fitFuncGaus.back().GetName());
+      fitFuncDVal.back().DrawClone("SAME");
+      fitFuncBG.back().DrawClone("SAME");
+      fitFuncGaus.back().DrawClone("SAME");
+      
+      Par.texText.SetText(0.17, 0.85, pTRangeName.c_str());
+      gPad->Add(Par.texText.Clone());
+      Par.texText.SetText(0.17, 0.79, zDCRangeName.c_str());
+      gPad->Add(Par.texText.Clone());
+      Par.texText.SetText(0.17, 0.73, chargeName.c_str());
+      gPad->Add(Par.texText.Clone());
+      Par.texText.SetText(0.17, 0.66, centralityRangeName.c_str());
+      gPad->Add(Par.texText.Clone());
+
+      iCanv++;
+
+      for (unsigned long i = 0; i < fitFuncDValAlt.size(); i++)
+      {
+         fitFuncDValAlt[i].
+            SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2)*
+                     static_cast<double>(i + 1), fitFuncDVal.back().GetParameter(1) + 
+                     fitFuncDVal.back().GetParameter(2)*static_cast<double>(i + 1));
+
+         for (int j = 0; j < fitFuncDVal.back().GetNpar(); j++)
+         {
+            fitFuncDValAlt[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
+            
+            if (j == 0 || j == 3)
+            {
+               fitFuncDValAlt[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.2, 
+                                              fitFuncDVal.back().GetParameter(j)*1.2); 
+            }
+            else if (j == 2 || j == 4)
+            {
+               fitFuncDValAlt[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.5, 
+                                              fitFuncDVal.back().GetParameter(j)*1.5); 
+            }
+         }
+         distrVariableProj->Fit(&fitFuncDValAlt[i], "RQMBNL");
+      }
+      
+      if (fabs(fitFuncDVal.back().GetParameter(1)) < 
+          detector["abs_max_fit_" + variableName].asDouble() && 
+          fabs(fitFuncDVal.back().GetParameter(2)) < 
+          detector["abs_max_fit_" + variableName].asDouble())
+      {
+         grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
+         grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
+         
+         // after CppTools is updated needs to be replaced
+         const double meanError = 
+            (RMS(GetNormRatio(fitFuncDValAlt[0].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
+                 GetNormRatio(fitFuncDValAlt[1].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
+                 GetNormRatio(fitFuncDValAlt[2].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
+                 GetNormRatio(fitFuncDValAlt[3].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)))
+                 - 1.)*fitFuncDVal.back().GetParameter(1);
+         const double sigmaError = 
+            (RMS(GetNormRatio(fitFuncDValAlt[0].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
+                 GetNormRatio(fitFuncDValAlt[1].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
+                 GetNormRatio(fitFuncDValAlt[2].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
+                 GetNormRatio(fitFuncDValAlt[3].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)))
+                 - 1.)*fitFuncDVal.back().GetParameter(2);
+         
+         grMeans.SetPointError(grMeans.GetN() - 1, 0, meanError);
+         grSigmas.SetPointError(grSigmas.GetN() - 1, 0, sigmaError);
+      }
+   }
+   if (grMeans.GetN() == 0) 
+   {
+      PrintError("Graph is empty for " + variableName + ", " + 
+                 detector["name"].asString() + ", " + chargeName + 
+                 " at " + zDCRangeName + ", " + centralityRangeName);
+   }
    
    const std::string outputFileNameNoExt = 
       "output/SigmalizedResiduals/" + Par.runName + "/" + detector["name"].asString() + "/" + 
       variableName + "_" + chargeNameShort + 
       centralityRangePathName + zDCRangePathName;
+   
    PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false, true);
 }
 
@@ -838,6 +910,12 @@ void SetNumberOfCalls()
       double currentFileNCalls = 0;
       if (tmpFile >> currentFileNCalls) Par.numberOfCalls += currentFileNCalls;
    }
+}
+
+double GetNormRatio(const double ratio)
+{
+   if (ratio > 0) return ratio;
+   return -1.*ratio;
 }
 
 #endif /* SIGMALIZED_RESIDUALS_CPP */

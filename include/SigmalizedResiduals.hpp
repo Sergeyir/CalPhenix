@@ -88,7 +88,7 @@ struct
                                         // warning will be printed
    
    // number of consequent fits of dphi and dz distributions for better approximation results
-   const unsigned short fitNTries = 5;
+   const unsigned int fitNTries = 5;
 
    int programMode;
 } Par;
@@ -102,5 +102,6 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& 
                                const int charge, const Json::Value& centralityBin);
 void PBarCall();
 void SetNumberOfCalls();
+double GetNormRatio(const double ratio);
 
 #endif /* SIGMALIZED_RESIDUALS_HPP */
