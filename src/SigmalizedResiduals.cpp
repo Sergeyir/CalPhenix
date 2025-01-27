@@ -129,9 +129,9 @@ int main(int argc, char **argv)
       if (argc > 4) numberOfThreads = std::stoi(argv[4]);
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) PrintError("Number of threads must be bigger than 0");
-
+      
       ROOT::EnableImplicitMT(numberOfThreads);
-
+      
       if (argc > 5) Par.showProgress = static_cast<bool>(std::stoi(argv[5]));
       
       Par.inputFile = std::unique_ptr<TFile>(TFile::Open(("data/Real/" + Par.runName + 
@@ -567,10 +567,6 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          grSigmas.RemovePoint(i);
       }
 
-      fitFuncDVal.clear();
-      fitFuncGaus.clear();
-      fitFuncBG.clear();
-      
       int iCanv = 1;
        
       for (const Json::Value& pTBin : Par.inputJSONCal["pt_bins"])
@@ -624,9 +620,9 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
             continue;
          }
 
-         fitFuncGaus.emplace_back(("gaus_" + std::to_string(pT)).c_str(), "gaus");
+         fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
          fitFuncDVal.emplace_back(("fitFunc_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
-         fitFuncBG.emplace_back(("bg" + std::to_string(pT)).c_str(), "gaus");
+         fitFuncBG.emplace_back(("fitBg_" + std::to_string(pT)).c_str(), "gaus");
          fitFuncGaus.back().SetParameters(1., 0., binWidth*2.);
          fitFuncDVal.back().SetParameters(1., 0., binWidth*2., 1., 0., maxX/2.);
          
@@ -639,14 +635,14 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          }
          else
          {
-            fitFuncGaus.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)/1.5, 
-                                            limitMeansFitFunc->Eval(pT)*1.5);
-            fitFuncGaus.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)/1.5, 
-                                            limitSigmasFitFunc->Eval(pT)*1.5);
-            fitFuncDVal.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)/1.5, 
-                                            limitMeansFitFunc->Eval(pT)*1.5);
-            fitFuncDVal.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)/1.5, 
-                                            limitSigmasFitFunc->Eval(pT)*1.5);
+            fitFuncGaus.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)*(-1.5), 
+                                            limitMeansFitFunc->Eval(pT)*2.);
+            fitFuncGaus.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)*(-1.5), 
+                                            limitSigmasFitFunc->Eval(pT)*2.);
+            fitFuncDVal.back().SetParLimits(1, limitMeansFitFunc->Eval(pT)*(-1.5), 
+                                            limitMeansFitFunc->Eval(pT)*2.);
+            fitFuncDVal.back().SetParLimits(2, limitSigmasFitFunc->Eval(pT)*(-1.5), 
+                                            limitSigmasFitFunc->Eval(pT)*2.);
          }
          
          fitFuncDVal.back().SetParLimits(4, minX*2., maxX*2.);
@@ -693,14 +689,16 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
 
          for (unsigned short j = 1; j <= Par.fitNTries; j++)
          {
-            for (int k = 0; k < fitFuncDVal.back().GetNpar(); k++)
+            for (int k = 1; k < fitFuncDVal.back().GetNpar(); k++)
             {
+               if (k == 3) continue; // it is better not to vary scaling limits
+               
                if (k != 2) // sigmas cannot be negative 
                {
                   fitFuncDVal.back().SetParLimits(k, fitFuncDVal.back().GetParameter(k)*
-                                                  (1. - 5./static_cast<double>(j*j)),
+                                                  (1. - 6./static_cast<double>(j*j)),
                                                   fitFuncDVal.back().GetParameter(k)*
-                                                  (1. + 5./static_cast<double>(j*j)));
+                                                  (1. + 4./static_cast<double>(j*j)));
                }
                else
                {
@@ -709,11 +707,17 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
                                                   fitFuncDVal.back().GetParameter(k)*
                                                   (1. + 5./static_cast<double>(j*j)));
                }
+
             }
             
             distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBN");
+            /*
+            fitFuncBG.back().
+               SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2)*5, 
+                        fitFuncDVal.back().GetParameter(1) + fitFuncDVal.back().GetParameter(2)*5);
+                        */
          }
-
+         
          for (int j = 0; j < 3; j++)
          {
             fitFuncGaus.back().SetParameter(j, fitFuncDVal.back().GetParameter(j));
@@ -776,6 +780,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       grSigmas.Fit(sigmasFit, "RQMBNW");
    };
    
+   /*
    TF1 meansFitPrelim("meansFitPrelim", Par.meansFitPrelimFunc.c_str());
    TF1 sigmasFitPrelim("sigmasFitPrelim", Par.sigmasFitPrelimFunc.c_str());
    
@@ -784,6 +789,7 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       PerformFitsInRange(false, pT["min"].asDouble(), pT["max"].asDouble(), 
                          &meansFitPrelim, &sigmasFitPrelim);
    }
+   */
    
    // lambda expressions for TF1
    const std::string meansFitFunc = 
@@ -793,13 +799,12 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       "[](double *x, double *par) {return " + 
       detector["sigmas_fit_func_" + variableName].asString() + ";}";
    
-   
    TF1 meansFit("meansFit", meansFitFunc.c_str(), 0., 1., GetNumberOfParameters(meansFitFunc));
    TF1 sigmasFit("sigmasFit", sigmasFitFunc.c_str(), 0., 1., GetNumberOfParameters(sigmasFitFunc));
 
    PerformFitsInRange(true, Par.inputJSONCal["pt_bins"].front()["min"].asDouble()/1.05, 
                       Par.inputJSONCal["pt_bins"].back()["max"].asDouble()*1.05, 
-                      &meansFit, &sigmasFit, &meansFitPrelim, &sigmasFitPrelim, true);
+                      &meansFit, &sigmasFit);
    
    const std::string outputFileNameNoExt = 
       "output/SigmalizedResiduals/" + Par.runName + "/" + detector["name"].asString() + "/" + 
