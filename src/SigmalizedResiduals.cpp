@@ -314,25 +314,13 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
 
             for (int i = 0; i < meansVsPTForFit.GetN(); i++)
             {
-               if (meansVsPTForFit.GetErrorY(i) > sigmasVsPTForFit.GetPointY(i)/10.)
-               {
-                  meansVsPTForFit.SetPointError(i, 0., meansVsPTForFit.GetErrorY(i)/
-                                                meansVsPTForFit.GetPointY(i));
-               }
-               else
-               {
-                  meansVsPTForFit.SetPointError(i, 0., 1.);
-               }
-               
-               if (sigmasVsPTForFit.GetErrorY(i) > sigmasVsPTForFit.GetPointY(i)/10.)
-               {
-                  sigmasVsPTForFit.SetPointError(i, 0., sigmasVsPTForFit.GetErrorY(i)/
-                                                sigmasVsPTForFit.GetPointY(i));
-               }
-               else
-               {
-                  sigmasVsPTForFit.SetPointError(i, 0., 1.);
-               }
+               // for means errors sigma measurements are used since uncertainty of mean would not
+               // depend on it's position while value of mean can be 0 or it can be some much larger
+               // number which makes the relative uncertainties inconsistent
+               meansVsPTForFit.SetPointError(i, 0., 1. + meansVsPTForFit.GetErrorY(i)/
+                                                    sigmasVsPTForFit.GetPointY(i));
+               sigmasVsPTForFit.SetPointError(i, 0., 1. + sigmasVsPTForFit.GetErrorY(i)/
+                                                     sigmasVsPTForFit.GetPointY(i));
             }
             
             for (unsigned int i = 1; i <= Par.fitNTries; i++)
@@ -663,23 +651,37 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       const double maxBinVal = 
          distrVariableProj->GetBinContent(distrVariableProj->GetMaximumBin());
 
-      fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
+      // main fit; it will be drawn and it's parameters will be extracted for further analysis
       fitFuncDVal.emplace_back(("fitFuncDVal_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
+      fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
       fitFuncBG.emplace_back(("fitBg_" + std::to_string(pT)).c_str(), "gaus");
          
       // scale limits
-      fitFuncGaus.back().SetParLimits(0, maxBinVal/5., maxBinVal);
-      fitFuncDVal.back().SetParLimits(0, maxBinVal/5., maxBinVal);
+      fitFuncGaus.back().SetParLimits(0, maxBinVal/2., maxBinVal);
+      fitFuncDVal.back().SetParLimits(0, maxBinVal/2., maxBinVal);
       fitFuncDVal.back().SetParLimits(3, maxBinVal/20., maxBinVal);
 
-      std::vector<TF1> fitFuncDValAlt;
+      // set of alternative fit functions used for uncertainty estimation 
+      // by varying ranges of approximation around mean by n*sigma of the main fit
+      // for first vector approximation ranges are varied symmetrically within mean
+      // for second vector approximation ranges are varied within right of mean; left range is 1sigma
+      // for third vector approximation ranges are varied within left of mean; right range is 1sigma
+      std::vector<TF1> fitFuncDValAlt, fitFuncDValAltRight, fitFuncDValAltLeft;
       
       for (unsigned long i = 0; i < 4; i++)
       {
          fitFuncDValAlt.emplace_back(("fitFuncDValAlt_" + std::to_string(i) + 
                                          "_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
-         fitFuncDValAlt.back().SetParLimits(0, maxBinVal/5., maxBinVal);
+         fitFuncDValAlt.back().SetParLimits(0, maxBinVal/2., maxBinVal);
          fitFuncDValAlt.back().SetParLimits(3, maxBinVal/20., maxBinVal);
+         fitFuncDValAltRight.emplace_back(("fitFuncDValAltRight_" + std::to_string(i) + 
+                                         "_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
+         fitFuncDValAltRight.back().SetParLimits(0, maxBinVal/2., maxBinVal);
+         fitFuncDValAltRight.back().SetParLimits(3, maxBinVal/20., maxBinVal);
+         fitFuncDValAltLeft.emplace_back(("fitFuncDValAltLeft_" + std::to_string(i) + 
+                                         "_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
+         fitFuncDValAltLeft.back().SetParLimits(0, maxBinVal/2., maxBinVal);
+         fitFuncDValAltLeft.back().SetParLimits(3, maxBinVal/20., maxBinVal);
       }
 
       fitFuncGaus.back().SetParameters(1., 0., binWidth*2.);
@@ -823,25 +825,45 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
       {
          fitFuncDValAlt[i].
             SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2)*
-                     static_cast<double>(i + 1), fitFuncDVal.back().GetParameter(1) + 
-                     fitFuncDVal.back().GetParameter(2)*static_cast<double>(i + 1));
+                     static_cast<double>(i + 1)*2., fitFuncDVal.back().GetParameter(1) + 
+                     fitFuncDVal.back().GetParameter(2)*static_cast<double>(i + 1)*2.);
+         fitFuncDValAltRight[i].
+            SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2), 
+                     fitFuncDVal.back().GetParameter(1) + 
+                     fitFuncDVal.back().GetParameter(2)*static_cast<double>(i + 1)*2.);
+         fitFuncDValAltLeft[i].
+            SetRange(fitFuncDVal.back().GetParameter(1) - fitFuncDVal.back().GetParameter(2)*
+                     static_cast<double>(i + 1)*2., fitFuncDVal.back().GetParameter(1) + 
+                     fitFuncDVal.back().GetParameter(2));
 
          for (int j = 0; j < fitFuncDVal.back().GetNpar(); j++)
          {
             fitFuncDValAlt[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
+            fitFuncDValAltRight[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
+            fitFuncDValAltLeft[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
             
             if (j == 0 || j == 3)
             {
                fitFuncDValAlt[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.2, 
                                               fitFuncDVal.back().GetParameter(j)*1.2); 
+               fitFuncDValAltRight[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.2, 
+                                                   fitFuncDVal.back().GetParameter(j)*1.2); 
+               fitFuncDValAltLeft[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.2, 
+                                                  fitFuncDVal.back().GetParameter(j)*1.2); 
             }
             else if (j == 2 || j == 4)
             {
                fitFuncDValAlt[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.5, 
                                               fitFuncDVal.back().GetParameter(j)*1.5); 
+               fitFuncDValAltRight[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.5, 
+                                                   fitFuncDVal.back().GetParameter(j)*1.5); 
+               fitFuncDValAltLeft[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.5, 
+                                                   fitFuncDVal.back().GetParameter(j)*1.5); 
             }
          }
          distrVariableProj->Fit(&fitFuncDValAlt[i], "RQMBNL");
+         distrVariableProj->Fit(&fitFuncDValAltRight[i], "RQMBNL");
+         distrVariableProj->Fit(&fitFuncDValAltLeft[i], "RQMBNL");
       }
       
       if (fabs(fitFuncDVal.back().GetParameter(1)) < 
@@ -852,19 +874,39 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
          grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
          grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
          
+         // relative uncertainties of means are inconsistent since absolute uncertainty does not
+         // depend on the position of the mean (it can be close to 0 or much larger number) 
+         // therefore for means difference of means divided by sigma is used as uncertainty
          // after CppTools is updated needs to be replaced
          const double meanError = 
-            (RMS(GetNormRatio(fitFuncDValAlt[0].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
-                 GetNormRatio(fitFuncDValAlt[1].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
-                 GetNormRatio(fitFuncDValAlt[2].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)),
-                 GetNormRatio(fitFuncDValAlt[3].GetParameter(1)/ fitFuncDVal.back().GetParameter(1)))
-                 - 1.)*fitFuncDVal.back().GetParameter(1);
+            StandardError(fitFuncDVal.back().GetParameter(1),
+                          fitFuncDValAlt[0].GetParameter(1),
+                          fitFuncDValAlt[1].GetParameter(1),
+                          fitFuncDValAlt[2].GetParameter(1),
+                          fitFuncDValAlt[3].GetParameter(1), 
+                          fitFuncDValAltRight[0].GetParameter(1),
+                          fitFuncDValAltRight[1].GetParameter(1),
+                          fitFuncDValAltRight[2].GetParameter(1),
+                          fitFuncDValAltRight[3].GetParameter(1),
+                          fitFuncDValAltLeft[0].GetParameter(1),
+                          fitFuncDValAltLeft[1].GetParameter(1),
+                          fitFuncDValAltLeft[2].GetParameter(1),
+                          fitFuncDValAltLeft[3].GetParameter(1));
+         
          const double sigmaError = 
-            (RMS(GetNormRatio(fitFuncDValAlt[0].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
-                 GetNormRatio(fitFuncDValAlt[1].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
-                 GetNormRatio(fitFuncDValAlt[2].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)),
-                 GetNormRatio(fitFuncDValAlt[3].GetParameter(2)/ fitFuncDVal.back().GetParameter(2)))
-                 - 1.)*fitFuncDVal.back().GetParameter(2);
+            StandardError(fitFuncDVal.back().GetParameter(2),
+                          fitFuncDValAlt[0].GetParameter(2),
+                          fitFuncDValAlt[1].GetParameter(2),
+                          fitFuncDValAlt[2].GetParameter(2),
+                          fitFuncDValAlt[3].GetParameter(2), 
+                          fitFuncDValAltRight[0].GetParameter(2),
+                          fitFuncDValAltRight[1].GetParameter(2),
+                          fitFuncDValAltRight[2].GetParameter(2),
+                          fitFuncDValAltRight[3].GetParameter(2),
+                          fitFuncDValAltLeft[0].GetParameter(2),
+                          fitFuncDValAltLeft[1].GetParameter(2),
+                          fitFuncDValAltLeft[2].GetParameter(2),
+                          fitFuncDValAltLeft[3].GetParameter(2));
          
          grMeans.SetPointError(grMeans.GetN() - 1, 0, meanError);
          grSigmas.SetPointError(grSigmas.GetN() - 1, 0, sigmaError);
@@ -914,8 +956,8 @@ void SetNumberOfCalls()
 
 double GetNormRatio(const double ratio)
 {
-   if (ratio > 0) return ratio;
-   return -1.*ratio;
+   if (ratio >= 1.) return ratio;
+   return 1./ratio;
 }
 
 #endif /* SIGMALIZED_RESIDUALS_CPP */
