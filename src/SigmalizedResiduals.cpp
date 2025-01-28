@@ -282,10 +282,10 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
             // lambda expressions for TF1
             const std::string meansFitFunc = 
                "[](double *x, double *par) {return " + 
-               detector["means_fit_func_" + variableName].asString() + ";}";
+               detector["means_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
             const std::string sigmasFitFunc = 
                "[](double *x, double *par) {return " + 
-               detector["sigmas_fit_func_" + variableName].asString() + ";}";
+               detector["sigmas_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
             
             fVMeansVsPT.
                emplace_back((zDCRangeName + centralityRangeName + 
@@ -577,17 +577,6 @@ void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, TGraphErrors &
    canvDValVsPT.Divide(Par.inputJSONCal["pt_nbinsx"].asInt(), 
                        Par.inputJSONCal["pt_nbinsy"].asInt());
 
-
-   // lambda expressions for TF1
-   const std::string meansFitFunc = 
-      "[](double *x, double *par) {return " + 
-      detector["means_fit_func_" + variableName].asString() + ";}";
-   const std::string sigmasFitFunc = 
-      "[](double *x, double *par) {return " + 
-      detector["sigmas_fit_func_" + variableName].asString() + ";}";
-   
-   TF1 meansFit("meansFit", meansFitFunc.c_str(), 0., 1., GetNumberOfParameters(meansFitFunc));
-   TF1 sigmasFit("sigmasFit", sigmasFitFunc.c_str(), 0., 1., GetNumberOfParameters(sigmasFitFunc));
 
    // functions for fits of dz and dphi distributions
    // vectors are needed for the object to not be deleted out of scope which 
