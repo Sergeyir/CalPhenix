@@ -183,16 +183,16 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
       std::unique_ptr<TFile>(TFile::Open((Par.outputDir + detectorName + "/all_fits_" + 
                                           variableName + ".root").c_str(), "RECREATE"));
 
-   // output file in which parameters of approximations will be written
-   std::ofstream parametersOutputMeans(Par.outputDir + "par_" + detectorName + "_" + 
-                                       variableName + "_means.txt");
-   std::ofstream parametersOutputSigmas(Par.outputDir + "par_" + detectorName + "_" + 
-                                        variableName + "_sigmas.txt");
-   
    for (int charge : Par.particleCharges)
    {
       const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
       const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
+
+      // output file in which parameters of approximations will be written
+      std::ofstream parametersOutputMeans(Par.outputDir + "par_means_" + detectorName + "_" + 
+                                          variableName + "_" + chargeNameShort + ".txt");
+      std::ofstream parametersOutputSigmas(Par.outputDir + "par_sigmas_" + detectorName + "_" + 
+                                           variableName + "_" + chargeNameShort + ".txt");
 
       for (unsigned int centralityBin = 0; centralityBin < 
            Par.inputJSONCal["centrality_bins"].size(); centralityBin++)
@@ -541,10 +541,11 @@ void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin,
          distrMeansVsZDCVsPT.Write("means: zDC vs pT");
          distrSigmasVsZDCVsPT.Write("sigmas: zDC vs pT");
       }
+      
+      parametersOutputMeans.close();
+      parametersOutputSigmas.close();
    }
    
-   parametersOutputMeans.close();
-   parametersOutputSigmas.close();
    Par.outputFile->Close();
 }
 
