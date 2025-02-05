@@ -37,7 +37,7 @@ all_libs: 	 CppToolsLib ROOTToolsLib PBarLib CalPhenixLib
 
 # CppTools target groups
 
-CppToolsLib: 	 	 ErrorHandler StrTools IOTools Box FitTools
+CppToolsLib: 	 	 ErrorHandler StrTools IOTools Box
 ErrorHandler: 	 	 $(CPP_TOOLS_LIB_DIR)/libErrorHandler.so
 StrTools: 	  	 	 $(CPP_TOOLS_LIB_DIR)/libStrTools.so
 IOTools: 	  	 	 $(CPP_TOOLS_LIB_DIR)/libIOTools.so
@@ -45,9 +45,9 @@ Box: 			  	 	 $(CPP_TOOLS_LIB_DIR)/libBox.so
 
 # ROOTTools target groups
 
-ROOTToolsLib: 	 	 TCanvasPrinter
-TCanvasPrinter: 	 $(ROOT_TOOLS_LIB_DIR)/libTCanvasPrinter.so
-FitTools: 	       $(ROOT_TOOLS_LIB_DIR)/libFitTools.so
+ROOTToolsLib: 	 	 TCanvasTools TF1Tools
+TCanvasTools: 	 	 $(ROOT_TOOLS_LIB_DIR)/libTCanvasTools.so
+TF1Tools: 	       $(ROOT_TOOLS_LIB_DIR)/libTF1Tools.so
 
 # ProgressBar target groups
 
@@ -96,16 +96,10 @@ $(CPP_TOOLS_LIB_DIR)/lib%.so: $(CPP_TOOLS_LIB_DIR)/%.o
 $(ROOT_TOOLS_LIB_DIR):
 	mkdir -p $@
 
-$(ROOT_TOOLS_LIB_DIR)/TCanvasPrinter.o: $(ROOT_TOOLS_SRC_DIR)/TCanvasPrinter.cpp | \
-												    $(ROOT_TOOLS_LIB_DIR)
+$(ROOT_TOOLS_LIB_DIR)/%.o: $(ROOT_TOOLS_SRC_DIR)/%.cpp | $(ROOT_TOOLS_LIB_DIR)
 	@$(ECHO) Building CXX object $@
 	$(CXX) $< $(CXX_COMMON_LIB) -o $@ \
-	$(ROOT_INCLUDE) `$(ROOT_CONFIG) --glibs`
-
-$(ROOT_TOOLS_LIB_DIR)/FitTools.o: $(ROOT_TOOLS_SRC_DIR)/FitTools.cpp | \
-											 $(ROOT_TOOLS_LIB_DIR)
-	@$(ECHO) Building CXX object $@
-	$(CXX) $< $(CXX_COMMON_LIB) -o $@ \
+	$(ROOT_TOOLS_INCLUDE) \
 	$(ROOT_INCLUDE) `$(ROOT_CONFIG) --glibs`
 
 $(ROOT_TOOLS_LIB_DIR)/lib%.so: $(ROOT_TOOLS_LIB_DIR)/%.o

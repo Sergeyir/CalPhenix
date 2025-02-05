@@ -1,19 +1,11 @@
-// $HEADER$
-//------------------------------------------------------------------------------------------------
-//                      SigmailzedResiduals functions declarations
-//------------------------------------------------------------------------------------------------
-// SigmalizedResiduals
-//
-// ** Code for use in PHENIX related projects **
-//
-// Author: Sergei Antsupov
-// Email: antsupov0124@gmail.com
-//
-/**
- * Basic code for calibrating sigmalized residuals (sdphi, sdz)
+/** 
+ *  @file   SigmalizedResiduals.hpp 
+ *  @brief  Contains declarations of functions and container Par used for estimation of values for calibration of sigmalized residuals dphi and dz
+ *
+ *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
+ *
+ *  @author Sergei Antsupov (antsupov0124@gmail.com)
  **/
-//------------------------------------------------------------------------------------------------
-
 #ifndef SIGMALIZED_RESIDUALS_HPP
 #define SIGMALIZED_RESIDUALS_HPP
 
@@ -37,71 +29,115 @@
 #include "IOTools.hpp"
 #include "MathTools.hpp"
 
-#include "TCanvasPrinter.hpp"
-#include "FitTools.hpp"
+#include "TF1Tools.hpp"
+#include "TCanvasTools.hpp"
 
 #include "PBar.hpp"
 
 #include "InputReader.hpp"
 
-struct
+/*! @namespace SigmalizedResiduals
+ * @brief Contains all functions and containers for SigmalizedResiduals.cpp and CheckSigmalizedResiduals.cpp
+ */
+namespace SigmalizedResiduals
 {
-   InputJSONReader inputJSONCal, inputJSONMain;
+   /*! @namespace Par
+    * @brief namespace containing global parameters (objects and variables) for SigmalizeResiduals.cpp and CheckSigmalizeResiduals.cpp 
+    *
+    * Used to prevent having many global variables and objects without any scope limitation in the program. The name Par is not an issue since it's usage and scope is limited to only one file (+ it's header) that will be compiled into executable
+    */
+   namespace Par
+   {
+      /// Contents of input .json file for calibration
+      InputJSONReader inputJSONCal;
+      /// Contents of input .json file for run configuration
+      InputJSONReader inputJSONMain;
+      /// Name of run (e.g. Run14HeAu200 or Run7AuAu200)
+      std::string runName;
+      // Charges of particles to be analyzed independently
+      const std::array<int, 2> particleCharges{1, -1};
+      /// Names of variables to be calibrated
+      const std::array<std::string, 2> variableName{"dphi", "dz"};
+      /// Names of variables to be calibrated in LaTex format
+      const std::array<std::string, 2> variableNameTex{"d#varphi", "dz_{DC}"};
+      /// Useful objects to employ for quick TLatex insertions
+      TLatex pTRangeTLatex, zDCRangeTLatex, chargeTLatex, centralityRangeTLatex;
+      /// Input file (from taxi output)
+      std::unique_ptr<TFile> inputFile;
+      /// Output file
+      std::unique_ptr<TFile> outputFile;
+      /// Output directory
+      std::string outputDir;
+      /// Minimum pT of the whole pT range
+      double pTMin;
+      /// Maximum pT of the whole pT range
+      double pTMax;
+      /// pT ranges
+      std::vector<double> pTRanges;
+      /// Centrality ranges
+      std::vector<double> centralityRanges;
+      /// pProgress bar - shows progress (see ProgressBar)
+      ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
+      /// Value that shows whether the computation part of this program is finished; the other part joins the threads and finishes the program
+      bool isProcessFinished = false;
+      /// Overall number of iterations that the program will make
+      unsigned long numberOfIterations = 0;
+      /// Number of calls (e.g. calls of a function in loop with numberOfIterations number of iterations)
+      unsigned long numberOfCalls = 0;
+      /// If true ProgressBar is printed; else the progress is written in tmp file (used if the program calls itself via shell)
+      bool showProgress = true;
+      /// Minimum number of entries for the histogram to be approximated. If this requirement for this value is not met warning will be printed but the program will not finish
+      const double minIntegralValue = 3e2;  
+      /// Number of consequent fits of dphi and dz distributions for better approximation results
+      /// each consequent fit decreases the limits around value from previous fit for every parameter
+      /// which makes bettter gradual gradient descent of approximation parameters since ROOT built in
+      /// approximation algorithm has only limited resource to perform the gradient descent
+      /// This value will be read and updated from .json calibration input file
+      unsigned int fitNTries = 1;
+      /// Mode in which the program was launched in; see main function description for more detail
+      int programMode;
+   };
 
-   std::string runName;
-   
-   // function for the first preliminary fit of means and sigmas; 
-   // it is needed to evaluate the parameters limits ranges
-   // the functions listed below are quite good at this first preliminary approximation
-   const std::string meansFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
-   const std::string sigmasFitPrelimFunc = "[0] - [1]*exp([2]*x) + [3]*exp([4]*x)";
+/*! @brief Calls PerformFitsForDifferentPT for the specified detector and variable for different centrality and zDC ranges
+ * @param[in] detectorBin detector bin (i.e. element of array in "detectors_to_calibrate" field in input .json file) 
+ * @param[in] variableBin variable bin (0 for dphi and 1 for dz) 
+ */
+   void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
+                                           const unsigned int variableBin);
+/*! @brief Performs approximations for the specified variable, zDC range, centrality, charge for different pT bins 
+ * @param[in] hist histogram from which projections will be taken and approximated 
+ * @param[in] grMeans graph in which means of approximations will be stored
+ * @param[in] grSigmas graph in which sigmas of approximations will be stored
+ * @param[in] detector container for the specified detector containing various data (name, approximation function, etc.; see "detectors_to_calibrate" field in input .json file)
+ * @param[in] zDC container for the specified zDC range containing various data (minimum, maximum, etc.; see "zdc_bins" field in input .json file)
+ * @param[in] charge charge of the particles that will be calibrated 
+ * @param[in] centrality container for the specified centrality range containing various data (minimum, maximum, etc.; see "centrality_bins" field in input .json file)
+ */
+   void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
+                                  const Json::Value& detector, 
+                                  const unsigned int variableBin, const Json::Value& zDC, 
+                                  const int charge, const Json::Value& centrality);
+   /// @brief Function for ProgressBar thread call
+   void PBarCall();
+   /// @brief If showProgress set to false in main this function will calculate how many calls have passed from .tmp files and set this value for Par::numberOfCalls
+   void SetNumberOfCalls();
+};
 
-   // charges of particles to be analyzed independently
-   const std::array<int, 2> particleCharges{1, -1};
-
-   // names of variables to be calibrated
-   const std::array<std::string, 2> variableName{"dphi", "dz"};
-   const std::array<std::string, 2> variableNameTex{"d#varphi", "dz_{DC}"};
-   
-   // useful object to employ for quick TLatex insertions
-   TLatex texText;
-
-   std::unique_ptr<TFile> inputFile, outputFile;
-   
-   std::string outputDir;
-   
-   double pTMin, pTMax;
-
-   std::vector<double> pTRanges, centralityRanges;
-
-   ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
-   bool isProcessFinished = false;
-   
-   unsigned long numberOfIterations = 0;
-   unsigned long numberOfCalls = 0;
-   bool showProgress = true; // if true ProgressBar is printed; 
-                             // else the progress is written in tmp file
-   
-   const double minIntegralValue = 3e2; // minimum number of entries for 
-                                        // the histogram to be approximated
-                                        // if the requirement for this value is not met
-                                        // warning will be printed
-   
-   // number of consequent fits of dphi and dz distributions for better approximation results
-   const unsigned int fitNTries = 5;
-
-   int programMode;
-} Par;
-
+/*! @brief Main function
+ *
+ * Can be provided either 2 (mode 1) or 5 (mode 2) user passed input arguments (here we don't account for the name of executable as a first parameter when it is called).
+ * 
+ * When called in mode 1
+ * @param[in] argv[1] name of the .json input file or name of the directory containing .json input file 
+ * @param[in] argv[2] number of threads the program will run on (if no value is passed this value is set to std::thread::hadrware_concurrency())
+ *
+ * When called in mode 2
+ * @param[in] argv[1] name of the .json input file or name of the directory containing .json input file 
+ * @param[in] argv[2] detector bin (i.e. element of array in "detectors_to_calibrate" field in input .json file) 
+ * @param[in] argv[3] variable bin (0 for dphi and 1 for dz) 
+ * @param[in] argv[4] number of threads the program will run on (if no value is passed this value is set to std::thread::hadrware_concurrency())
+ * @param[in] argv[5] if it is doesn't equal to '0' the ProgressBar will show the progress (if no value is passed this value is set to true)
+ */
 int main(int argc, char **argv);
-void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
-                                        const unsigned int variableBin);
-void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
-                               const Json::Value& detector, 
-                               const unsigned int variableBin, const Json::Value& zDCBin, 
-                               const int charge, const Json::Value& centralityBin);
-void PBarCall();
-void SetNumberOfCalls();
-double GetNormRatio(const double ratio);
 
 #endif /* SIGMALIZED_RESIDUALS_HPP */

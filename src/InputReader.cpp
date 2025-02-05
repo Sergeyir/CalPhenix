@@ -1,21 +1,13 @@
-// $SOURCE$
-//------------------------------------------------------------------------------------------------
-//                          InputReader classes realisation
-//------------------------------------------------------------------------------------------------
-// InputReader
-//
-// ** Code for use in PHENIX related projects **
-//
-// Author: Sergei Antsupov
-// Email: antsupov0124@gmail.com
-//
-/**
- * Basic classes wrapper for reading .json and .yaml files
- * This code was created to avoid for all same checks for the input file to
- * be copied in each source file in which .json and/or .yaml files are read
+/** 
+ *  @file   InputReader.cpp 
+ *  @brief  Contains declaration of class InputJSONReader
+ *
+ *  In order to use InputJSONReader class libraries libInputReader.so, libErrorHandler.so must be loaded
+ *
+ *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
+ *
+ *  @author Sergei Antsupov (antsupov0124@gmail.com)
  **/
-//------------------------------------------------------------------------------------------------
-
 #ifndef INPUT_READER_CPP
 #define INPUT_READER_CPP
 
@@ -33,7 +25,7 @@ void InputJSONReader::OpenFile(const std::string& inputFileOrDir, const std::str
    const std::filesystem::path inputFilePath(inputFileOrDir);
    if (std::filesystem::is_directory(inputFilePath))
    {
-      if (inputType == "") PrintError("InputJSONReader::OpenFile: File type was not specified");
+      if (inputType == "") CppTools::PrintError("InputJSONReader::OpenFile: File type was not specified");
       inputFileName = inputFileOrDir + "/" + inputType + ".json";
    }
    else
@@ -43,12 +35,12 @@ void InputJSONReader::OpenFile(const std::string& inputFileOrDir, const std::str
       
       if (fileExt != ".json") 
       {
-         PrintError("InputJSONReader::OpenFile: Input file must have .json extention.");
+         CppTools::PrintError("InputJSONReader::OpenFile: Input file must have .json extention.");
       }
       inputFileName = inputFileOrDir;
    }
 
-   CheckInputFile(inputFileName);
+   CppTools::CheckInputFile(inputFileName);
    
    inputFile.open(inputFileName.c_str(), std::ifstream::binary);
    inputFile >> inputFileContents;
@@ -58,8 +50,8 @@ void InputJSONReader::CheckStatus(const std::string& status)
 {
    if (inputFileContents["status"].asString() != status)
    {
-      PrintError("Status mismatch in file " + inputFileName + ": " +
-                 inputFileContents["status"].asString() + " vs " + status);
+      CppTools::PrintError("Status mismatch in file " + inputFileName + ": " +
+                           inputFileContents["status"].asString() + " vs " + status);
    }
 }
 
