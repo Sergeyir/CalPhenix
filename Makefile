@@ -32,7 +32,7 @@ endif
 all: all_libs exe_targets
 	@echo "All done"
 
-exe_targets: SigmalizedResiduals 
+exe_targets: SigmalizedResiduals CheckSigmalizedResiduals
 all_libs: 	 CppToolsLib ROOTToolsLib PBarLib CalPhenixLib
 
 # CppTools target groups
@@ -135,6 +135,11 @@ lib/lib%.so: lib/%.o
 	$(CXX) -shared -o $@ $<
 
 SigmalizedResiduals: src/SigmalizedResiduals.cpp all_libs bin
+	@$(ECHO) Building CXX executable $@
+	$(CXX) $< $(CXX_COMMON_EXE) -o bin/$@ \
+	$(ALL_INCLUDE) $(ALL_LIB)
+
+CheckSigmalizedResiduals: src/CheckSigmalizedResiduals.cpp all_libs bin
 	@$(ECHO) Building CXX executable $@
 	$(CXX) $< $(CXX_COMMON_EXE) -o bin/$@ \
 	$(ALL_INCLUDE) $(ALL_LIB)
