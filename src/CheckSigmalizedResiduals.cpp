@@ -263,20 +263,8 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             }
          }
          
-         double meanYMin = 1e31, meanYMax = -1e31;
-         double sigmaYMin = 1e31, sigmaYMax = -1e31;
-         
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          {
-            meanYMin = CppTools::Minimum(meanYMin, TMath::MinElement(grVMeansVsPT[i].GetN(), 
-                                                                     grVMeansVsPT[i].GetY()));
-            meanYMax = CppTools::Maximum(meanYMax, TMath::MaxElement(grVMeansVsPT[i].GetN(), 
-                                                                     grVMeansVsPT[i].GetY()));
-            sigmaYMin = CppTools::Minimum(sigmaYMin, TMath::MinElement(grVSigmasVsPT[i].GetN(), 
-                                                                       grVSigmasVsPT[i].GetY()));
-            sigmaYMax = CppTools::Maximum(sigmaYMax, TMath::MaxElement(grVSigmasVsPT[i].GetN(), 
-                                                                       grVSigmasVsPT[i].GetY()));
-            
             const Json::Value zDC = Par::inputJSONCal["zdc_bins"][static_cast<int>(i)];
             
             grVMeansVsPT[i].SetMarkerStyle(zDC["marker_style"].asInt());
@@ -290,9 +278,10 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             grVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.8);
          }
          
+         
          TCanvas canvValVsPTVsZDC("", "", 800, 800);
          canvValVsPTVsZDC.cd();
-         
+ 
          TLegend legend{0.15, 0.7, 0.88, 0.89};
          legend.SetNColumns(3);
          legend.SetLineColorAlpha(0, 0.);
@@ -302,8 +291,8 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          
          TH1F meansFrame(("means frame " + thisBinUniqueName).c_str(), "", 
                          10, Par::pTMin - 0.1, Par::pTMax*1.05);
-         meansFrame.SetMinimum(meanYMin - (meanYMax - meanYMin)*0.05);
-         meansFrame.SetMaximum(meanYMax + (meanYMax - meanYMin)*0.35);
+         meansFrame.SetMinimum(-1.);
+         meansFrame.SetMaximum(1.);
          
          meansFrame.GetXaxis()->SetTitle("p_{T} [GeV/c]");
          meansFrame.GetYaxis()->
@@ -312,6 +301,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          meansFrame.GetYaxis()->SetTitleOffset(2.0);
          gPad->Add(&meansFrame, "AXIS");
          gPad->Add(&meansFrame, "SAME AXIS X+ Y+");
+
+         TLine expectedMeanValLine(Par::pTMin - 0.1, 0., Par::pTMax*1.05, 0.);
+         expectedMeanValLine.SetLineColorAlpha(kGray+3, 0.5);
+         expectedMeanValLine.SetLineWidth(3);
+         expectedMeanValLine.SetLineStyle(2);
+         gPad->Add(&expectedMeanValLine);
          
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          {
@@ -334,14 +329,20 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
          TH1F sigmasFrame(("sigmas frame " + thisBinUniqueName).c_str(), "", 
                           10, Par::pTMin - 0.1, Par::pTMax*1.05);
-         sigmasFrame.SetMinimum(sigmaYMin/1.1);
-         sigmasFrame.SetMaximum(sigmaYMax*1.4);
+         sigmasFrame.SetMinimum(0.);
+         sigmasFrame.SetMaximum(2.);
          
          sigmasFrame.GetXaxis()->SetTitle("p_{T} [GeV/c]");
          sigmasFrame.GetYaxis()->
             SetTitle(("#sigma_{s" + Par::variableNameTex[variableBin] + "}").c_str());
          gPad->Add(&sigmasFrame, "AXIS");
          gPad->Add(&sigmasFrame, "SAME AXIS X+ Y+");
+
+         TLine expectedSigmaValLine(Par::pTMin - 0.1, 1., Par::pTMax*1.05, 1.);
+         expectedSigmaValLine.SetLineColorAlpha(kGray+3, 0.5);
+         expectedSigmaValLine.SetLineWidth(3);
+         expectedSigmaValLine.SetLineStyle(2);
+         gPad->Add(&expectedSigmaValLine);
          
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          { 
