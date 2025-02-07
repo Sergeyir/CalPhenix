@@ -56,6 +56,8 @@ int main(int argc, char **argv)
       CppTools::PrintInfo("Exiting the program");
       exit(1);
    }
+
+   TDirectory::AddDirectory(kFALSE);
    
    if (argc < 4) // Mode1
    {
@@ -71,12 +73,6 @@ int main(int argc, char **argv)
                                 Par::inputJSONCal["centrality_bins"].size()*
                                 Par::inputJSONCal["zdc_bins"].size()*4;
 
-      for (const auto& detector : Par::inputJSONCal["detectors_to_calibrate"])
-      {
-         system(("mkdir -p output/SigmalizedResiduals/" + Par::runName + 
-                 "/" + detector["name"].asString()).c_str());
-      }
-      
       auto SingleThreadCall = [&](const unsigned long detectorBin, 
                                   const unsigned long variableBin)
       {
@@ -178,12 +174,14 @@ int main(int argc, char **argv)
 }
             
 void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
-                                        const unsigned int variableBin)
+                                                             const unsigned int variableBin)
 {   
    const Json::Value detector = Par::inputJSONCal["detectors_to_calibrate"][detectorBin];
    
    const std::string detectorName = detector["name"].asString();
    const std::string variableName = "s" + Par::variableName[variableBin];
+
+   system(("mkdir -p output/SigmalizedResiduals/" + Par::runName + "/" + detectorName).c_str());
    
    Par::outputFile = 
       std::unique_ptr<TFile>(TFile::Open((Par::outputDir + detectorName + "/all_fits_" + 
@@ -211,11 +209,8 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          const std::string centralityRangePathName = 
             "_c" + centrality["min"].asString() + "-" + centrality["max"].asString();
          
-         // TDirectory pointer in output file for the current thread
-         const std::string outputFileDirName = detectorName + "/" + variableName + "/" + 
-                                               chargeName + "/" + centralityRangePathName;
-         Par::outputFile->mkdir(outputFileDirName.c_str());
-         Par::outputFile->cd(outputFileDirName.c_str());
+         Par::outputFile->mkdir((chargeName + "/" + centralityRangePathName).c_str());
+         Par::outputFile->cd((chargeName + "/" + centralityRangePathName).c_str());
          
          std::vector<TGraphErrors> grVMeansVsPT, grVSigmasVsPT;
          
@@ -321,7 +316,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
          gPad->Add(&legend);
          
-         ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "_means_" + 
+         ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "/means_" + 
                                 variableName + "_" + chargeNameShort + centralityRangePathName);
          
          legend.Clear();
@@ -357,7 +352,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
          gPad->Add(&legend);
          
-         ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "_sigmas_" + 
+         ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "/sigmas_" + 
                                 variableName + "_" + chargeNameShort + 
                                 centralityRangePathName);
       }
@@ -386,9 +381,9 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    const std::string zDCRangePathName = "_zDC" + zDC["min"].asString() + 
                                         "-" + zDC["max"].asString();
 
-   TCanvas canvDValVsPT("dval vs pT", "", 
-                Par::inputJSONCal["pt_nbinsx"].asDouble()*400.,
-                Par::inputJSONCal["pt_nbinsy"].asDouble()*400.);
+   TCanvas canvDValVsPT(("all fits, " + zDCRangeName).c_str(), "", 
+                         Par::inputJSONCal["pt_nbinsx"].asDouble()*400.,
+                         Par::inputJSONCal["pt_nbinsy"].asDouble()*400.);
    
    canvDValVsPT.Divide(Par::inputJSONCal["pt_nbinsx"].asInt(), 
                        Par::inputJSONCal["pt_nbinsy"].asInt());
@@ -656,12 +651,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                            " at " + zDCRangeName + ", " + centralityRangeName);
    }
    
-   const std::string outputFileNameNoExt = 
-      "output/SigmalizedResiduals/" + Par::runName + "/" + detector["name"].asString() + "/" + 
-      variableName + "_" + chargeNameShort + 
-      centralityRangePathName + zDCRangePathName;
-   
-   ROOTTools::PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false);
+   canvDValVsPT.Write();
 }
 
 void SigmalizedResiduals::PBarCall()
