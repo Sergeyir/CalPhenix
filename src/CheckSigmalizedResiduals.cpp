@@ -43,9 +43,9 @@ int main(int argc, char **argv)
    // initializing this program parameters
    Par::inputJSONCal.OpenFile(argv[1], "sigmalized_residuals");
    Par::inputJSONCal.CheckStatus("sigmalized_residuals");
-   
+
    Par::runName = Par::inputJSONCal["run_name"].asString();
-   
+
    // opening input file with parameters of a run
    Par::inputJSONMain.OpenFile("input/" + Par::runName + "/main.json");
    Par::inputJSONMain.CheckStatus("main");
@@ -58,16 +58,17 @@ int main(int argc, char **argv)
    }
 
    TDirectory::AddDirectory(kFALSE);
-   
+
    if (argc < 4) // Mode1
    {
+
+      system(("mkdir -p tmp/SigmalizedResiduals/" + Par::runName).c_str());
       Par::programMode = 1;
       if (argc > 2) numberOfThreads = std::stoi(argv[2]);
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
       system("rm -rf tmp/SigmalizedResiduals/*");
-      system(("mkdir -p tmp/SigmalizedResiduals/" + Par::runName).c_str());
 
       Par::numberOfIterations = Par::inputJSONCal["detectors_to_calibrate"].size()*
                                 Par::inputJSONCal["centrality_bins"].size()*
@@ -108,7 +109,7 @@ int main(int argc, char **argv)
          thrCalls.back().join();
          thrCalls.pop_back();
       }
-      
+
       Par::isProcessFinished = true;
       pBarThr.join();
    }
@@ -118,15 +119,15 @@ int main(int argc, char **argv)
       if (argc > 4) numberOfThreads = std::stoi(argv[4]);
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
-      
+
       ROOT::EnableImplicitMT(numberOfThreads);
-      
+
       if (argc > 5) Par::showProgress = static_cast<bool>(std::stoi(argv[5]));
-      
+
       Par::inputFile = 
          std::unique_ptr<TFile>(TFile::Open(("data/" + Par::runName + 
                                              "/SigmalizedResiduals/sum.root").c_str(), "READ"));
-      
+
       Par::pTRangeTLatex.SetTextFont(52);
       Par::pTRangeTLatex.SetTextSize(0.06);
       Par::pTRangeTLatex.SetNDC();
@@ -156,33 +157,34 @@ int main(int argc, char **argv)
       Par::centralityRanges.push_back(Par::inputJSONCal["centrality_bins"].back()["max"].asDouble());
 
       Par::outputDir = "output/SigmalizedResiduals/" + Par::runName + "/";
-      
+      system(("mkdir -p " + Par::outputDir + "/shift").c_str());
+
       Par::pTMin = Par::inputJSONCal["pt_bins"].front()["min"].asDouble();
       Par::pTMax = Par::inputJSONCal["pt_bins"].back()["max"].asDouble();
 
       Par::fitNTries = Par::inputJSONCal["number_of_fit_tries"].asUInt();
-      
+
       std::thread pBarThr(PBarCall); 
-      
+
       PerformFitsForDifferentCentrAndZDC(std::stoi(argv[2]), std::stoi(argv[3]));
-      
+
       Par::isProcessFinished = true;
       pBarThr.join();
    }
  
    return 0;
 }
-            
+
 void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
                                                              const unsigned int variableBin)
-{   
+{
    const Json::Value detector = Par::inputJSONCal["detectors_to_calibrate"][detectorBin];
-   
+
    const std::string detectorName = detector["name"].asString();
    const std::string variableName = "s" + Par::variableName[variableBin];
 
    system(("mkdir -p output/SigmalizedResiduals/" + Par::runName + "/" + detectorName).c_str());
-   
+
    Par::outputFile = 
       std::unique_ptr<TFile>(TFile::Open((Par::outputDir + detectorName + "/all_fits_" + 
                                           variableName + ".root").c_str(), "RECREATE"));
@@ -192,88 +194,168 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
       const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
+      // output files in which constant is shifted
+      std::ofstream shiftOutputMeans(Par::outputDir + "shift/par_means_" + detectorName + "_" + 
+                                     Par::variableName[variableBin] + "_" + 
+                                     chargeNameShort + ".txt");
+      std::ofstream shiftOutputSigmas(Par::outputDir + "shift/par_sigmas_" + detectorName +
+                                      "_" + Par::variableName[variableBin] + "_" + 
+                                      chargeNameShort + ".txt");
+
+      const std::string parametersMeansFileName = 
+         Par::outputDir + "par_means_" + detectorName + "_" + 
+         Par::variableName[variableBin] + "_" + chargeNameShort + ".txt";
+
+      const std::string parametersSigmasFileName = 
+         Par::outputDir + "par_sigmas_" + detectorName + "_" + 
+         Par::variableName[variableBin] + "_" + chargeNameShort + ".txt";
+
+      CppTools::CheckInputFile(parametersMeansFileName);
+      CppTools::CheckInputFile(parametersSigmasFileName);
+      
+      std::ifstream parametersMeans(parametersMeansFileName);
+      std::ifstream parametersSigmas(parametersSigmasFileName);
+
+      const std::string meansFitFunc = 
+         detector["means_fit_func_" + Par::variableName[variableBin] + 
+                  "_" + chargeNameShort].asString();
+      const std::string sigmasFitFunc = 
+         detector["sigmas_fit_func_" + Par::variableName[variableBin] + 
+                  "_" + chargeNameShort].asString();
+
+      const unsigned int numberOfParametersMeans = ROOTTools::GetNumberOfParameters(meansFitFunc);
+      const unsigned int numberOfParametersSigmas = ROOTTools::GetNumberOfParameters(sigmasFitFunc);
+
       for (unsigned int centralityBin = 0; centralityBin < 
            Par::inputJSONCal["centrality_bins"].size(); centralityBin++)
       {
          const Json::Value centrality = Par::inputJSONCal["centrality_bins"][centralityBin];
-         
+
          const std::string centralityRangeName = centrality["min"].asString() + "-" + 
                                                  centrality["max"].asString() + "%"; 
-         
+
          // unique name for this bin to prevent ROOT 
          // printing warnings about replacing same named objects
          const std::string thisBinUniqueName = 
             detectorName + variableName + chargeName + centralityRangeName;
-         
+
          // same as before but without percent; used for output file names
          const std::string centralityRangePathName = 
             "_c" + centrality["min"].asString() + "-" + centrality["max"].asString();
-         
+
          Par::outputFile->mkdir((chargeName + "/" + centralityRangePathName).c_str());
          Par::outputFile->cd((chargeName + "/" + centralityRangePathName).c_str());
-         
+
          std::vector<TGraphErrors> grVMeansVsPT, grVSigmasVsPT;
-         
+
          for (const Json::Value& zDC : Par::inputJSONCal["zdc_bins"])
          { 
             Par::numberOfCalls++;
-             
+ 
             const std::string zDCRangeName = zDC["min"].asString() + "<zDC<" + 
                                              zDC["max"].asString();
             const std::string zDCRangePathName = "_zDC" + zDC["min"].asString() + 
                                                  "-" + zDC["max"].asString();
-            
+
             // name of histogram
             const std::string distrVariableName =  
                variableName + " vs pT vs centrality: " + detectorName + ", " + 
                chargeName + ", " + zDCRangeName;
-            
+
             TH3F *distrVariable = 
                static_cast<TH3F *>(Par::inputFile->Get(distrVariableName.c_str()));
-            
+
             if (!distrVariable) 
             {
                CppTools::PrintError("Histogram named \"" + distrVariableName + 
                                     "\" does not exist in file " + Par::inputFile->GetName());
             }
-            
+
             std::string fitsOutputFileName = Par::outputDir + detectorName + "/" + 
                                              variableName + "_" + chargeName + 
                                              centralityRangePathName + zDCRangePathName;
 
             grVMeansVsPT.emplace_back();
             grVSigmasVsPT.emplace_back();
-            
+
             PerformFitsForDifferentPT(distrVariable, grVMeansVsPT.back(), grVSigmasVsPT.back(), 
                                       detector, variableBin, zDC, charge, centrality);
 
             grVMeansVsPT.back().Write(("means: " + zDCRangeName).c_str());
             grVSigmasVsPT.back().Write(("sigmas: " + zDCRangeName).c_str());
-            
+
             if (!Par::showProgress)
             {
                std::ofstream progressFile("tmp/SigmalizedResiduals/" + Par::runName + "/" + 
                                      std::to_string(detectorBin) + std::to_string(variableBin));
                progressFile << Par::numberOfCalls;
             }
+
+            std::vector<double> grMeansVsPTWeights, grSigmasVsPTWeights;
+
+            for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
+            {
+               // these errors will be used instead of actual ones; this is due to the fact
+               // that some weights are really big for some points, usually somewhere in the middle.
+               // which makes mean of the distribution to be equal to the values in these points
+               grMeansVsPTWeights.push_back(1/pow(1. + grVMeansVsPT.back().GetErrorY(i), 2));
+               grSigmasVsPTWeights.push_back(1/pow(1. + grVMeansVsPT.back().GetErrorY(i), 2));
+            }
+
+            const double meanShift = -TMath::Mean(grVMeansVsPT.back().GetN(), 
+                                                  grVMeansVsPT.back().GetY(), 
+                                                  &grMeansVsPTWeights[0]);
+
+            const double sigmaShift = 1. - TMath::Mean(grVSigmasVsPT.back().GetN(), 
+                                                       grVSigmasVsPT.back().GetY(), 
+                                                       &grSigmasVsPTWeights[0]);
+            double tmp;
+            for (unsigned int i = 0; i < numberOfParametersMeans; i++)
+            {
+               if (!(parametersMeans >> tmp)) 
+               {
+                  CppTools::PrintError("Unexpected end of file " + parametersMeansFileName);
+               }
+               if (i == 0) tmp += meanShift;
+               shiftOutputMeans << tmp;
+               if (i < numberOfParametersMeans - 1) shiftOutputMeans << " ";
+            }
+            for (unsigned int i = 0; i < numberOfParametersSigmas; i++)
+            {
+               if (!(parametersSigmas >> tmp)) 
+               {
+                  CppTools::PrintError("Unexpected end of file " + parametersSigmasFileName);
+               }
+               if (i == 0) tmp += sigmaShift;
+               shiftOutputSigmas << tmp;
+               if (i < numberOfParametersSigmas - 1) shiftOutputSigmas << " ";
+            }
+            shiftOutputMeans << std::endl;
+            shiftOutputSigmas << std::endl;
+
+            for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
+            {
+               grVMeansVsPT.back().SetPointY(i, grVMeansVsPT.back().GetPointY(i) + meanShift);
+               grVSigmasVsPT.back().SetPointY(i, grVSigmasVsPT.back().GetPointY(i) + sigmaShift);
+            }
          }
-         
+
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          {
             const Json::Value zDC = Par::inputJSONCal["zdc_bins"][static_cast<int>(i)];
-            
+
             grVMeansVsPT[i].SetMarkerStyle(zDC["marker_style"].asInt());
             grVMeansVsPT[i].SetMarkerSize(1.4);
             grVMeansVsPT[i].SetMarkerColorAlpha(zDC["color"].asInt(), 0.8);
             grVMeansVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.8);
-            
+
             grVSigmasVsPT[i].SetMarkerStyle(zDC["marker_style"].asInt());
             grVSigmasVsPT[i].SetMarkerSize(1.4);
             grVSigmasVsPT[i].SetMarkerColorAlpha(zDC["color"].asInt(), 0.8);
             grVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.8);
          }
-         
-         
+
+
          TCanvas canvValVsPTVsZDC("", "", 800, 800);
          canvValVsPTVsZDC.cd();
  
@@ -281,14 +363,14 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          legend.SetNColumns(3);
          legend.SetLineColorAlpha(0, 0.);
          legend.SetFillColorAlpha(0, 0.);
-         
+
          gPad->SetLeftMargin(0.135);
-         
+
          TH1F meansFrame(("means frame " + thisBinUniqueName).c_str(), "", 
                          10, Par::pTMin - 0.1, Par::pTMax*1.05);
          meansFrame.SetMinimum(-1.);
          meansFrame.SetMaximum(1.);
-         
+
          meansFrame.GetXaxis()->SetTitle("p_{T} [GeV/c]");
          meansFrame.GetYaxis()->
             SetTitle(("#mu_{s" + Par::variableNameTex[variableBin] + "}").c_str());
@@ -302,23 +384,23 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          expectedMeanValLine.SetLineWidth(3);
          expectedMeanValLine.SetLineStyle(2);
          gPad->Add(&expectedMeanValLine);
-         
+
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          {
             const std::string zDCRangeName = 
                Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["min"].asString() + 
                "<z_{DC}<" + 
                Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["max"].asString();
-            
+
             legend.AddEntry(&grVMeansVsPT[i], zDCRangeName.c_str(), "P");
             gPad->Add(&grVMeansVsPT[i], "SAME P");
          }
 
          gPad->Add(&legend);
-         
+
          ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "/means_" + 
                                 variableName + "_" + chargeNameShort + centralityRangePathName);
-         
+
          legend.Clear();
          canvValVsPTVsZDC.Clear();
 
@@ -326,7 +408,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                           10, Par::pTMin - 0.1, Par::pTMax*1.05);
          sigmasFrame.SetMinimum(0.);
          sigmasFrame.SetMaximum(2.);
-         
+
          sigmasFrame.GetXaxis()->SetTitle("p_{T} [GeV/c]");
          sigmasFrame.GetYaxis()->
             SetTitle(("#sigma_{s" + Par::variableNameTex[variableBin] + "}").c_str());
@@ -338,26 +420,29 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          expectedSigmaValLine.SetLineWidth(3);
          expectedSigmaValLine.SetLineStyle(2);
          gPad->Add(&expectedSigmaValLine);
-         
+
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
          { 
             const std::string zDCRangeName = 
                Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["min"].asString() + 
                "<z_{DC}<" + 
                Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["max"].asString();
-            
+
             legend.AddEntry(&grVSigmasVsPT[i], zDCRangeName.c_str(), "P");
             gPad->Add(&grVSigmasVsPT[i], "SAME P");
          }
 
          gPad->Add(&legend);
-         
+
          ROOTTools::PrintCanvas(&canvValVsPTVsZDC, Par::outputDir + detectorName + "/sigmas_" + 
                                 variableName + "_" + chargeNameShort + 
                                 centralityRangePathName);
       }
+
+      shiftOutputMeans.close();
+      shiftOutputSigmas.close();
    }
-   
+
    Par::outputFile->Close();
 }
 
@@ -384,7 +469,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    TCanvas canvDValVsPT(("all fits, " + zDCRangeName).c_str(), "", 
                          Par::inputJSONCal["pt_nbinsx"].asDouble()*400.,
                          Par::inputJSONCal["pt_nbinsy"].asDouble()*400.);
-   
+
    canvDValVsPT.Divide(Par::inputJSONCal["pt_nbinsx"].asInt(), 
                        Par::inputJSONCal["pt_nbinsy"].asInt());
 
@@ -396,12 +481,12 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    // alternate fits in different region for estimation of uncertainty
  
    int iCanv = 1;
-    
+ 
    for (const Json::Value& pTBin : Par::inputJSONCal["pt_bins"])
    {
       const double pT = CppTools::Average(pTBin["min"].asDouble(), pTBin["max"].asDouble());
       if (pT < Par::pTMin || pT > Par::pTMax) continue;
-       
+ 
       TH1D *distrVariableProj = hist->
          ProjectionX(((std::string) hist->GetName() + "_projX_" + std::to_string(pT)).c_str(), 
                      hist->GetYaxis()->FindBin(pTBin["min"].asDouble() + 1e-6), 
@@ -411,7 +496,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
 
       const std::string pTRangeName = CppTools::DtoStr(pTBin["min"].asDouble(), 1) + "<pT<" + 
                                       CppTools::DtoStr(pTBin["max"].asDouble(), 1);
-      
+
       if (distrVariableProj->Integral(1, distrVariableProj->GetXaxis()->GetNbins()) < 
           Par::minIntegralValue) 
       {
@@ -420,7 +505,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                              zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
          continue;
       }
-      
+
       const double maxBinVal = 
          distrVariableProj->GetBinContent(distrVariableProj->GetMaximumBin());
 
@@ -428,7 +513,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       fitFuncDVal.emplace_back(("fitFuncDVal_" + std::to_string(pT)).c_str(), "gaus(0) + gaus(3)");
       fitFuncGaus.emplace_back(("fitGaus_" + std::to_string(pT)).c_str(), "gaus");
       fitFuncBG.emplace_back(("fitBg_" + std::to_string(pT)).c_str(), "gaus");
-         
+
       // scale limits
       fitFuncGaus.back().SetParLimits(0, maxBinVal/2., maxBinVal);
       fitFuncDVal.back().SetParLimits(0, maxBinVal/2., maxBinVal);
@@ -440,7 +525,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       // for second vector approximation ranges are varied within right of mean; left range is 1sigma
       // for third vector approximation ranges are varied within left of mean; right range is 1sigma
       std::vector<TF1> fitFuncDValAlt, fitFuncDValAltRight, fitFuncDValAltLeft;
-      
+
       for (unsigned long i = 0; i < 4; i++)
       {
          fitFuncDValAlt.emplace_back(("fitFuncDValAlt_" + std::to_string(i) + 
@@ -459,15 +544,15 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
 
       fitFuncGaus.back().SetParameters(1., 0., 1.);
       fitFuncDVal.back().SetParameters(1., 0., 1.);
-      
+
       fitFuncGaus.back().SetParLimits(1, -0.5, 0.5);
       fitFuncGaus.back().SetParLimits(2, 0.5, 2.);
       fitFuncDVal.back().SetParLimits(1, -0.5, 0.5);
       fitFuncDVal.back().SetParLimits(2, 0.5, 2.);
-      
+
       fitFuncDVal.back().SetParLimits(4, -10., 10.);
       fitFuncDVal.back().SetParLimits(5, 2., 50.);
-      
+
       fitFuncDVal.back().SetLineColorAlpha(kRed+1, 0.6);
       fitFuncBG.back().SetLineColorAlpha(kGreen+1, 0.9);
       fitFuncBG.back().SetLineStyle(2);
@@ -482,18 +567,18 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       distrVariableProj->SetLabelSize(0.06, "Y");
  
       fitFuncGaus.back().SetRange(-0.5, 0.5);
-      
+
       distrVariableProj->Fit(&fitFuncGaus.back(), "RQMBN");
  
       for (int i = 0; i < 3; i++)
       {
          fitFuncDVal.back().SetParameter(i, fitFuncGaus.back().GetParameter(i));
       }
-      
+
       fitFuncDVal.back().SetRange(-5., 5.);
       fitFuncGaus.back().SetRange(-5., 5.);
       fitFuncBG.back().SetRange(-5., 5.);
-      
+
       distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBN");
 
       for (unsigned short i = 1; i <= Par::fitNTries; i++)
@@ -522,32 +607,32 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                                          (1. + 5./static_cast<double>(i*i)),
                                          fitFuncDVal.back().GetParameter(5)*
                                          (1. + 5./static_cast<double>(i*i)));
-         
+
          distrVariableProj->Fit(&fitFuncDVal.back(), "RQMBNL");
       }
-      
+
       for (int i = 0; i < 3; i++)
       {
          fitFuncGaus.back().SetParameter(i, fitFuncDVal.back().GetParameter(i));
          fitFuncBG.back().SetParameter(i, fitFuncDVal.back().GetParameter(i + 3));
       }
-      
+
       distrVariableProj->SetMarkerStyle(20);
       distrVariableProj->SetMarkerSize(0.7);
       distrVariableProj->SetMarkerColorAlpha(kBlack, 0.8);
       distrVariableProj->SetLineColorAlpha(kBlack, 0.8);
       distrVariableProj->SetMaximum(maxBinVal*1.2);
-      
+
       canvDValVsPT.cd(iCanv);
-      
+
       gPad->SetLeftMargin(0.155);
       gPad->SetBottomMargin(0.128);
-      
+
       gPad->Add(distrVariableProj, "P");
       fitFuncDVal.back().DrawClone("SAME");
       fitFuncBG.back().DrawClone("SAME");
       fitFuncGaus.back().DrawClone("SAME");
-      
+
       Par::pTRangeTLatex.SetText(0.17, 0.85, pTRangeName.c_str());
       Par::zDCRangeTLatex.SetText(0.17, 0.79, zDCRangeName.c_str());
       Par::chargeTLatex.SetText(0.17, 0.73, chargeName.c_str());
@@ -579,7 +664,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
             fitFuncDValAlt[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
             fitFuncDValAltRight[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
             fitFuncDValAltLeft[i].SetParameter(j, fitFuncDVal.back().GetParameter(j)); 
-            
+
             if (j == 0 || j == 3)
             {
                fitFuncDValAlt[i].SetParLimits(j, fitFuncDVal.back().GetParameter(j)/1.2, 
@@ -603,10 +688,13 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
          distrVariableProj->Fit(&fitFuncDValAltRight[i], "RQMBNL");
          distrVariableProj->Fit(&fitFuncDValAltLeft[i], "RQMBNL");
       }
-      
+
+      if (fabs(fitFuncDVal.back().GetParameter(1)) > 1. ||
+          fabs(fitFuncDVal.back().GetParameter(2) - 1.) > 1.) continue;
+
       grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
       grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
-      
+
       // relative uncertainties of means are inconsistent since absolute uncertainty does not
       // depend on the position of the mean (it can be close to 0 or much larger number) 
       // therefore for means difference of means divided by sigma is used as uncertainty
@@ -625,7 +713,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                                  fitFuncDValAltLeft[2].GetParameter(1),
                                  fitFuncDValAltLeft[3].GetParameter(1),
                                  fitFuncDVal.back().GetParameter(1));
-      
+
       const double sigmaError = 
          CppTools::StandardError(fitFuncDValAlt[0].GetParameter(2),
                                  fitFuncDValAlt[1].GetParameter(2),
@@ -640,7 +728,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                                  fitFuncDValAltLeft[2].GetParameter(2),
                                  fitFuncDValAltLeft[3].GetParameter(2),
                                  fitFuncDVal.back().GetParameter(2));
-      
+
       grMeans.SetPointError(grMeans.GetN() - 1, 0, meanError);
       grSigmas.SetPointError(grSigmas.GetN() - 1, 0, sigmaError);
    }
@@ -650,7 +738,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                            detector["name"].asString() + ", " + chargeName + 
                            " at " + zDCRangeName + ", " + centralityRangeName);
    }
-   
+
    canvDValVsPT.Write();
 }
 
