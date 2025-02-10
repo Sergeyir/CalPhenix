@@ -333,11 +333,14 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             shiftOutputMeans << std::endl;
             shiftOutputSigmas << std::endl;
 
+            // correct the graphs for the shift to check the effect of the shift
+            /*
             for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
             {
                grVMeansVsPT.back().SetPointY(i, grVMeansVsPT.back().GetPointY(i) + meanShift);
                grVSigmasVsPT.back().SetPointY(i, grVSigmasVsPT.back().GetPointY(i) + sigmaShift);
             }
+            */
          }
 
          for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
