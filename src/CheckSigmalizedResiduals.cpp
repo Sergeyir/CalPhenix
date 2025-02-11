@@ -194,27 +194,14 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
       const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
-      // output files in which constant is shifted
-      std::ofstream shiftOutputMeans(Par::outputDir + "shift/par_means_" + detectorName + "_" + 
+      // output files in which sigmalized means are re shifted and sigmalized sigmas are re scaled
+      // this is needed to correct sigmalized means and sigmas distributions
+      std::ofstream shiftOutputMeans(Par::outputDir + "recal/shift_means_" + detectorName + "_" + 
                                      Par::variableName[variableBin] + "_" + 
                                      chargeNameShort + ".txt");
-      std::ofstream shiftOutputSigmas(Par::outputDir + "shift/par_sigmas_" + detectorName +
+      std::ofstream scalesOutputSigmas(Par::outputDir + "recal/scale_sigmas_" + detectorName +
                                       "_" + Par::variableName[variableBin] + "_" + 
                                       chargeNameShort + ".txt");
-
-      const std::string parametersMeansFileName = 
-         Par::outputDir + "par_means_" + detectorName + "_" + 
-         Par::variableName[variableBin] + "_" + chargeNameShort + ".txt";
-
-      const std::string parametersSigmasFileName = 
-         Par::outputDir + "par_sigmas_" + detectorName + "_" + 
-         Par::variableName[variableBin] + "_" + chargeNameShort + ".txt";
-
-      CppTools::CheckInputFile(parametersMeansFileName);
-      CppTools::CheckInputFile(parametersSigmasFileName);
-      
-      std::ifstream parametersMeans(parametersMeansFileName);
-      std::ifstream parametersSigmas(parametersSigmasFileName);
 
       const std::string meansFitFunc = 
          detector["means_fit_func_" + Par::variableName[variableBin] + 
@@ -222,9 +209,6 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       const std::string sigmasFitFunc = 
          detector["sigmas_fit_func_" + Par::variableName[variableBin] + 
                   "_" + chargeNameShort].asString();
-
-      const unsigned int numberOfParametersMeans = ROOTTools::GetNumberOfParameters(meansFitFunc);
-      const unsigned int numberOfParametersSigmas = ROOTTools::GetNumberOfParameters(sigmasFitFunc);
 
       for (unsigned int centralityBin = 0; centralityBin < 
            Par::inputJSONCal["centrality_bins"].size(); centralityBin++)
@@ -306,32 +290,11 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                                                   grVMeansVsPT.back().GetY(), 
                                                   &grMeansVsPTWeights[0]);
 
-            const double sigmaShift = 1. - TMath::Mean(grVSigmasVsPT.back().GetN(), 
+            const double sigmaScale = 1. - TMath::Mean(grVSigmasVsPT.back().GetN(), 
                                                        grVSigmasVsPT.back().GetY(), 
                                                        &grSigmasVsPTWeights[0]);
-            double tmp;
-            for (unsigned int i = 0; i < numberOfParametersMeans; i++)
-            {
-               if (!(parametersMeans >> tmp)) 
-               {
-                  CppTools::PrintError("Unexpected end of file " + parametersMeansFileName);
-               }
-               if (i == 0) tmp += meanShift;
-               shiftOutputMeans << tmp;
-               if (i < numberOfParametersMeans - 1) shiftOutputMeans << " ";
-            }
-            for (unsigned int i = 0; i < numberOfParametersSigmas; i++)
-            {
-               if (!(parametersSigmas >> tmp)) 
-               {
-                  CppTools::PrintError("Unexpected end of file " + parametersSigmasFileName);
-               }
-               if (i == 0) tmp += sigmaShift;
-               shiftOutputSigmas << tmp;
-               if (i < numberOfParametersSigmas - 1) shiftOutputSigmas << " ";
-            }
-            shiftOutputMeans << std::endl;
-            shiftOutputSigmas << std::endl;
+            shiftOutputMeans << meanShift << std::endl;
+            scalesOutputSigmas << sigmaScale << std::endl;
 
             // correct the graphs for the shift to check the effect of the shift
             /*
@@ -443,7 +406,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       }
 
       shiftOutputMeans.close();
-      shiftOutputSigmas.close();
+      scalesOutputSigmas.close();
    }
 
    Par::outputFile->Close();
