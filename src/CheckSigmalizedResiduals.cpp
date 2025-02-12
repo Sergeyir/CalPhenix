@@ -61,14 +61,13 @@ int main(int argc, char **argv)
 
    if (argc < 4) // Mode1
    {
-
-      system(("mkdir -p tmp/SigmalizedResiduals/" + Par::runName).c_str());
       Par::programMode = 1;
       if (argc > 2) numberOfThreads = std::stoi(argv[2]);
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
       system("rm -rf tmp/SigmalizedResiduals/*");
+      system(("mkdir -p tmp/SigmalizedResiduals/" + Par::runName).c_str());
 
       Par::numberOfIterations = Par::inputJSONCal["detectors_to_calibrate"].size()*
                                 Par::inputJSONCal["centrality_bins"].size()*
@@ -157,7 +156,7 @@ int main(int argc, char **argv)
       Par::centralityRanges.push_back(Par::inputJSONCal["centrality_bins"].back()["max"].asDouble());
 
       Par::outputDir = "output/SigmalizedResiduals/" + Par::runName + "/";
-      system(("mkdir -p " + Par::outputDir + "/shift").c_str());
+      system(("mkdir -p " + Par::outputDir + "CalibrationParameters").c_str());
 
       Par::pTMin = Par::inputJSONCal["pt_bins"].front()["min"].asDouble();
       Par::pTMax = Par::inputJSONCal["pt_bins"].back()["max"].asDouble();
@@ -194,14 +193,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
       const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
-      // output files in which sigmalized means are re shifted and sigmalized sigmas are re scaled
+      // output file in which shifts and scales to sigmalized value is written
       // this is needed to correct sigmalized means and sigmas distributions
-      std::ofstream shiftOutputMeans(Par::outputDir + "recal/shift_means_" + detectorName + "_" + 
-                                     Par::variableName[variableBin] + "_" + 
-                                     chargeNameShort + ".txt");
-      std::ofstream scalesOutputSigmas(Par::outputDir + "recal/scale_sigmas_" + detectorName +
-                                      "_" + Par::variableName[variableBin] + "_" + 
-                                      chargeNameShort + ".txt");
+      std::ofstream recalOutput(Par::outputDir + "CalibrationParameters/recal_" + 
+                                detectorName + "_" + variableName + "_" + chargeNameShort + ".txt");
+
+      recalOutput << "1 1" << std::endl;
 
       const std::string meansFitFunc = 
          detector["means_fit_func_" + Par::variableName[variableBin] + 
@@ -282,26 +279,27 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                // these errors will be used instead of actual ones; this is due to the fact
                // that some weights are really big for some points, usually somewhere in the middle.
                // which makes mean of the distribution to be equal to the values in these points
-               grMeansVsPTWeights.push_back(1/pow(1. + grVMeansVsPT.back().GetErrorY(i), 2));
-               grSigmasVsPTWeights.push_back(1/pow(1. + grVMeansVsPT.back().GetErrorY(i), 2));
+               grMeansVsPTWeights. push_back(1./pow(1. + grVMeansVsPT.back().GetErrorY(i)/
+                                                    grVSigmasVsPT.back().GetPointY(i), 2));
+               grSigmasVsPTWeights. push_back(1./pow(1. + grVMeansVsPT.back().GetErrorY(i)/
+                                                     grVSigmasVsPT.back().GetPointY(i), 2));
             }
 
             const double meanShift = -TMath::Mean(grVMeansVsPT.back().GetN(), 
                                                   grVMeansVsPT.back().GetY(), 
                                                   &grMeansVsPTWeights[0]);
+            const double sigmaScale = 1./TMath::Mean(grVSigmasVsPT.back().GetN(), 
+                                                     grVSigmasVsPT.back().GetY(), 
+                                                     &grSigmasVsPTWeights[0]);
 
-            const double sigmaScale = 1. - TMath::Mean(grVSigmasVsPT.back().GetN(), 
-                                                       grVSigmasVsPT.back().GetY(), 
-                                                       &grSigmasVsPTWeights[0]);
-            shiftOutputMeans << meanShift << std::endl;
-            scalesOutputSigmas << sigmaScale << std::endl;
+            recalOutput << meanShift << " " << sigmaScale << std::endl;
 
             // correct the graphs for the shift to check the effect of the shift
             /*
             for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
             {
                grVMeansVsPT.back().SetPointY(i, grVMeansVsPT.back().GetPointY(i) + meanShift);
-               grVSigmasVsPT.back().SetPointY(i, grVSigmasVsPT.back().GetPointY(i) + sigmaShift);
+               grVSigmasVsPT.back().SetPointY(i, grVSigmasVsPT.back().GetPointY(i)*sigmaScale);
             }
             */
          }
@@ -405,8 +403,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                                 centralityRangePathName);
       }
 
-      shiftOutputMeans.close();
-      scalesOutputSigmas.close();
+      recalOutput.close();
    }
 
    Par::outputFile->Close();

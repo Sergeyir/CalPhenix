@@ -123,6 +123,9 @@ int main(int argc, char **argv)
 
       if (argc > 5) Par::showProgress = static_cast<bool>(std::stoi(argv[5]));
 
+      system(("mkdir -p output/SigmalizedResiduals/" + Par::runName + 
+              "/CalibrationParameters").c_str());
+
       Par::inputFile = 
          std::unique_ptr<TFile>(TFile::Open(("data/" + Par::runName + 
                                              "/SigmalizedResiduals/sum.root").c_str(), "READ"));
@@ -192,11 +195,26 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
       const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
       const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
-      // output files in which parameters of approximations will be written
-      std::ofstream parametersOutputMeans(Par::outputDir + "par_means_" + detectorName + "_" + 
-                                          variableName + "_" + chargeNameShort + ".txt");
-      std::ofstream parametersOutputSigmas(Par::outputDir + "par_sigmas_" + detectorName + "_" + 
-                                           variableName + "_" + chargeNameShort + ".txt");
+      // output files in which parameters of means and sigmas approximations will be written
+      std::ofstream parametersOutput(Par::outputDir + "CalibrationParameters/cal_" + 
+                                     detectorName + "_s" + variableName + "_" + 
+                                     chargeNameShort + ".txt");
+
+      // lambda expressions for TF1
+      const std::string meansFitFunc = 
+         "[](double *x, double *p) {return " + 
+         detector["means_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
+      const std::string sigmasFitFunc = 
+         "[](double *x, double *p) {return " + 
+         detector["sigmas_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
+
+      const unsigned int numberOfParametersFitMeans = 
+         ROOTTools::GetNumberOfParameters(meansFitFunc);
+      const unsigned int numberOfParametersFitSigmas = 
+         ROOTTools::GetNumberOfParameters(sigmasFitFunc);
+
+      parametersOutput << numberOfParametersFitMeans << " " << 
+                          numberOfParametersFitSigmas << std::endl;
 
       for (unsigned int centralityBin = 0; centralityBin < 
            Par::inputJSONCal["centrality_bins"].size(); centralityBin++)
@@ -280,24 +298,14 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             grVMeansVsPT.emplace_back();
             grVSigmasVsPT.emplace_back();
 
-            // lambda expressions for TF1
-            const std::string meansFitFunc = 
-               "[](double *x, double *p) {return " + 
-               detector["means_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
-            const std::string sigmasFitFunc = 
-               "[](double *x, double *p) {return " + 
-               detector["sigmas_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
-
             fVMeansVsPT.
                emplace_back((zDCRangeName + centralityRangeName + 
                              detectorName + chargeName + variableName).c_str(), 
-                            meansFitFunc.c_str(), 0., 1., 
-                            ROOTTools::GetNumberOfParameters(meansFitFunc));
+                            meansFitFunc.c_str(), 0., 1., numberOfParametersFitMeans);
             fVSigmasVsPT.
                emplace_back((zDCRangeName + centralityRangeName + 
                              detectorName + chargeName + variableName).c_str(), 
-                            sigmasFitFunc.c_str(), 0., 1., 
-                            ROOTTools::GetNumberOfParameters(sigmasFitFunc));
+                            sigmasFitFunc.c_str(), 0., 1., numberOfParametersFitSigmas);
 
             PerformFitsForDifferentPT(distrVariable, grVMeansVsPT.back(), grVSigmasVsPT.back(), 
                                       detector, variableBin, zDC, charge, centrality);
@@ -349,17 +357,15 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
             for (int i = 0; i < fVMeansVsPT.back().GetNpar(); i++)
             {
-               parametersOutputMeans << fVMeansVsPT.back().GetParameter(i);
-               if (i < fVMeansVsPT.back().GetNpar() - 1) parametersOutputMeans << " ";
+               parametersOutput << fVMeansVsPT.back().GetParameter(i) << " ";
             }
-            parametersOutputMeans << std::endl;
 
             for (int i = 0; i < fVSigmasVsPT.back().GetNpar(); i++)
             {
-               parametersOutputSigmas << fVSigmasVsPT.back().GetParameter(i);
-               if (i < fVSigmasVsPT.back().GetNpar() - 1) parametersOutputSigmas << " ";
+               parametersOutput << fVSigmasVsPT.back().GetParameter(i);
+               if (i < fVSigmasVsPT.back().GetNpar() - 1) parametersOutput << " ";
             }
-            parametersOutputSigmas << std::endl;
+            parametersOutput << std::endl;
 
             // filling 2D histograms with weights as fit parameters means and sigmas
             for (int i = 0; i < grVMeansVsPT.back().GetN(); i++)
@@ -539,8 +545,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          distrSigmasVsZDCVsPT.Write("sigmas: zDC vs pT");
       }
 
-      parametersOutputMeans.close();
-      parametersOutputSigmas.close();
+      parametersOutput.close();
    }
 
    Par::outputFile->Close();
