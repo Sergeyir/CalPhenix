@@ -5,6 +5,8 @@ backup/
 __pycache__
 tmp/
 data/
+html/
+latex/
 
 output
 *:w
