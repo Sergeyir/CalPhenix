@@ -118,12 +118,18 @@ namespace SigmalizedResiduals
                                   const Json::Value& detector, 
                                   const unsigned int variableBin, const Json::Value& zDC, 
                                   const int charge, const Json::Value& centrality);
+/*! @brief Returns yield of a signal of a distribution that can be characterised with FG+BG approximations
+ * @param[in] hist histogram containing the distribution
+ * @param[in] fitBG background approximation of the histogram 
+ * @param[in] mean parameter of foreground (gaus) approximation 
+ * @param[in] sigma parameter of foreground (gaus) approximation  
+ */
+   double GetYield(const TH1D* hist, const TF1& fitBG, const double mean, const double sigma);
    /// @brief Function for ProgressBar thread call
    void PBarCall();
    /// @brief If showProgress set to false in main this function will calculate how many calls have passed from .tmp files and set this value for Par::numberOfCalls
    void SetNumberOfCalls();
 };
-
 /*! @brief Main function
  *
  * Can be provided either 2 (mode 1) or 5 (mode 2) user passed input arguments (here we don't account for the name of executable as a first parameter when it is called).

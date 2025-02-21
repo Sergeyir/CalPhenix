@@ -695,6 +695,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       grMeans.SetPointError(grMeans.GetN() - 1, 0, meanError);
       grSigmas.SetPointError(grSigmas.GetN() - 1, 0, sigmaError);
    }
+
    if (grMeans.GetN() == 0) 
    {
       CppTools::PrintError("Graph is empty for " + variableName + ", " + 

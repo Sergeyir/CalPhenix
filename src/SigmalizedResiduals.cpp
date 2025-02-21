@@ -307,6 +307,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                              detectorName + chargeName + variableName).c_str(), 
                             sigmasFitFunc.c_str(), 0., 1., numberOfParametersFitSigmas);
 
+
             PerformFitsForDifferentPT(distrVariable, grVMeansVsPT.back(), grVSigmasVsPT.back(), 
                                       detector, variableBin, zDC, charge, centrality);
 
@@ -590,6 +591,11 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    // alternate fits in different region for estimation of uncertainty
  
    int iCanv = 1;
+
+   // graph that stores the integral of signal vs pT needed later for bin shift correction
+   TGraphErrors grYield;
+   // minimum and maximum pT of bins that are used
+   std::vector<double> binsPTMin, binsPTMax;
  
    for (const Json::Value& pTBin : Par::inputJSONCal["pt_bins"])
    {
@@ -867,6 +873,12 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
          grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
          grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
 
+         grYield.AddPoint(pT, GetYield(distrVariableProj, fitFuncBG.back(), 
+                          fitFuncDVal.back().GetParameter(1), fitFuncDVal.back().GetParameter(2)));
+
+         binsPTMin.push_back(pTBin["min"].asDouble());
+         binsPTMax.push_back(pTBin["max"].asDouble());
+
          // relative uncertainties of means are inconsistent since absolute uncertainty does not
          // depend on the position of the mean (it can be close to 0 or much larger number) 
          // therefore for means difference of means divided by sigma is used as uncertainty
@@ -905,6 +917,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
          grSigmas.SetPointError(grSigmas.GetN() - 1, 0, sigmaError);
       }
    }
+
    if (grMeans.GetN() == 0) 
    {
       CppTools::PrintError("Graph is empty for " + variableName + ", " + 
@@ -912,7 +925,12 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
                            " at " + zDCRangeName + ", " + centralityRangeName);
    }
 
-   /*
+   canvDValVsPT.Write();
+
+   // printing TCanvas with approximations for every pT bin
+   // commented since it takes too much space too print every fit
+   // (~1GB for Run14HeAu200 for all EMCal sectors, dphi, dz)
+   /* 
    const std::string outputFileNameNoExt = 
       "output/SigmalizedResiduals/" + Par::runName + "/" + detector["name"].asString() + "/" + 
       variableName + "_" + chargeNameShort + 
@@ -921,7 +939,52 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    ROOTTools::PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false);
    */
 
-   canvDValVsPT.Write();
+   // applying bin shift correction
+   // commented since it is very inconsistent; maybe will be implemented later
+   /*
+   TF1 yieldFit(("yield fit " + zDCRangeName).c_str(), "exp(pol2(0)) + exp(pol2(3)) + expo(6)");
+   yieldFit.SetRange(Par::pTMin, Par::pTMax);
+   for (int i = 0; i < 5; i++)
+   {
+      grYield.Fit(&yieldFit, "RQMN");
+      for (int j = 0; j < grYield.GetN(); j++)
+      {
+         //CppTools::Print(i, j, grYield.GetPointY(j));
+         double integral = 0.;
+         for (int k = 0; k <= 100; k++)
+         {
+            integral += yieldFit.Eval(binsPTMin[j] + (binsPTMax[j] - binsPTMin[j])*
+                                         static_cast<double>(k)/100.);
+         }
+         grYield.SetPointX(j, yieldFit.GetX(integral/101., binsPTMin[j], binsPTMax[j]));
+      }
+   }
+
+   for (int i = 0; i < grYield.GetN(); i++)
+   {
+      grMeans.SetPointX(i, grYield.GetPointX(i));
+      grSigmas.SetPointX(i, grYield.GetPointX(i));
+   }
+
+   grYield.Write(("yield " + zDCRangeName).c_str());
+   yieldFit.Write();
+   */
+}
+
+double SigmalizedResiduals::GetYield(const TH1D *hist, const TF1& fitBG, 
+                                     const double mean, const double sigma)
+{
+   const int minBin = hist->GetXaxis()->FindBin(mean - sigma);
+   const int maxBin = hist->GetXaxis()->FindBin(mean + sigma);
+
+   double integral = 0.;
+
+   for (int i = minBin; i <= maxBin; i++)
+   {
+      integral += hist->GetBinContent(i) - fitBG.Eval(hist->GetXaxis()->GetBinCenter(i));
+   }
+   return integral/(erf((hist->GetXaxis()->GetBinUpEdge(maxBin) - mean)/sigma/sqrt(2.))/2. + 
+                    erf((hist->GetXaxis()->GetBinUpEdge(maxBin) - mean)/sigma/sqrt(2.))/2.);
 }
 
 void SigmalizedResiduals::PBarCall()
