@@ -48,7 +48,7 @@ class InputJSONReader
    /// @brief Public access to Json::Value operator[] associated with the file contents opened with InputJSONReader object
    Json::Value operator[](const std::string& field);
    /// @brief Default destructor
-   ~InputJSONReader();
+   virtual ~InputJSONReader();
 
    private:
    

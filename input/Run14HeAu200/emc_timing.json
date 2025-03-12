@@ -1,0 +1,52 @@
+{
+   "status": "emc_timing",
+   "description": "Calibration of EMCal timing",
+   "run_name": "Run14HeAu200",
+   "sectors_to_calibrate":
+   [
+      {
+         "name": "EMCale0",
+         "number_of_towers_y": 48,
+         "number_of_towers_z": 97
+      },
+      {
+         "name": "EMCale1",
+         "number_of_towers_y": 48,
+         "number_of_towers_z": 97
+      },
+      {
+         "name": "EMCale2",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      },
+      {
+         "name": "EMCale3",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      },
+      {
+         "name": "EMCalw0",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      },
+      {
+         "name": "EMCalw1",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      },
+      {
+         "name": "EMCalw2",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      },
+      {
+         "name": "EMCalw3",
+         "number_of_towers_y": 36,
+         "number_of_towers_z": 72
+      }
+   ],
+   "adc_bins":
+   [
+      {"min": 0.0, "max": 0.5}
+   ]
+}

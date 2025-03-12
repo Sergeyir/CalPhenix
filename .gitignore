@@ -2,16 +2,15 @@ output/
 bin/
 lib/
 backup/
-__pycache__
 tmp/
-data/
-html/
-latex/
+build/
+output/
+CMakeFiles/
 
-output
 *:w
 *.pyc
 __*
+*.tmp
 *.log
 *.swp
 *.png
@@ -21,3 +20,7 @@ __*
 *.o
 *.so
 *.a
+*.cmake
+
+CMakeCache.txt
+./Makefile
