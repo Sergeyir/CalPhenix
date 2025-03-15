@@ -35,7 +35,7 @@
 
 #include "PBar.hpp"
 
-#include "InputReader.hpp"
+#include "InputYAMLReader.hpp"
 
 /*! @namespace SigmalizedResiduals
  * @brief Contains all functions and containers for SigmalizedResiduals.cpp and CheckSigmalizedResiduals.cpp
@@ -50,9 +50,9 @@ namespace SigmalizedResiduals
    namespace Par
    {
       /// Contents of input .json file for calibration
-      InputJSONReader inputJSONCal;
+      InputYAMLReader inputYAMLCal;
       /// Contents of input .json file for run configuration
-      InputJSONReader inputJSONMain;
+      InputYAMLReader inputYAMLMain;
       /// Name of run (e.g. Run14HeAu200 or Run7AuAu200)
       std::string runName;
       // Charges of particles to be analyzed independently
@@ -73,8 +73,10 @@ namespace SigmalizedResiduals
       double pTMin;
       /// Maximum pT of the whole pT range
       double pTMax;
-      /// pT ranges
+      /// pT ranges for ROOT TAxis
       std::vector<double> pTRanges;
+      /// zDC ranges for ROOT TAxis
+      std::vector<double> zDCRanges;
       /// Centrality ranges
       std::vector<double> centralityRanges;
       /// pProgress bar - shows progress (see ProgressBar)
@@ -95,6 +97,8 @@ namespace SigmalizedResiduals
       /// approximation algorithm has only limited resource to perform the gradient descent
       /// This value will be read and updated from .json calibration input file
       unsigned int fitNTries = 1;
+      /// flag that tells the program whether dphi and dz distributions for all bins (pT, zDC, centrality, charge) should be drawn
+      bool drawDValDistr = false;
       /// Mode in which the program was launched in; see main function description for more detail
       int programMode;
    };
@@ -115,9 +119,9 @@ namespace SigmalizedResiduals
  * @param[in] centrality container for the specified centrality range containing various data (minimum, maximum, etc.; see "centrality_bins" field in input .json file)
  */
    void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
-                                  const Json::Value& detector, 
-                                  const unsigned int variableBin, const Json::Value& zDC, 
-                                  const int charge, const Json::Value& centrality);
+                                  const YAML::Node& detector, 
+                                  const unsigned int variableBin, const YAML::Node& zDC, 
+                                  const int charge, const YAML::Node& centrality);
 /*! @brief Returns yield of a signal of a distribution that can be characterised with FG+BG approximations
  * @param[in] hist histogram containing the distribution
  * @param[in] fitBG background approximation of the histogram 

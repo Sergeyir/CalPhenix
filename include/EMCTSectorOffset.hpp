@@ -1,6 +1,6 @@
 /** 
- *  @file   EMCTiming.hpp 
- *  @brief  Contains declarations of functions and container Par used for estimation of values for calibration of EMCal timing 
+ *  @file   EMCTSectorOffset.hpp
+ *  @brief  Contains declarations of functions and container Par used for estimation of sector offset of the time in EMCal over all runs
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
@@ -37,10 +37,10 @@
 
 #include "InputReader.hpp"
 
-/*! @namespace SigmalizedResiduals
- * @brief Contains all functions and containers for SigmalizedResiduals.cpp and CheckSigmalizedResiduals.cpp
+/*! @namespace EMCTSectorOffset
+ * @brief Contains all functions and containers for EMCTSectorOffset.cpp
  */
-namespace SigmalizedResiduals
+namespace EMCTSectorOffset
 {
    /*! @namespace Par
     * @brief namespace containing global parameters (objects and variables) for SigmalizeResiduals.cpp and CheckSigmalizeResiduals.cpp 
@@ -69,7 +69,7 @@ namespace SigmalizedResiduals
       bool showProgress = true;
       /// Minimum number of entries for the histogram to be approximated. If this requirement for this value is not met warning will be printed but the program will not finish
       const double minIntegralValue = ;  
-      /// Number of consequent fits of dphi and dz distributions for better approximation results
+      /// Number of consequent fits of t vs ADC distribution
       /// each consequent fit decreases the limits around value from previous fit for every parameter
       /// which makes bettter gradual gradient descent of approximation parameters since ROOT built in
       /// approximation algorithm has only limited resource to perform the gradient descent

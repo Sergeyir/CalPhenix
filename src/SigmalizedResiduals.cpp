@@ -41,16 +41,16 @@ int main(int argc, char **argv)
    gStyle->SetOptFit(0);
 
    // initializing this program parameters
-   Par::inputJSONCal.OpenFile(argv[1], "sigmalized_residuals");
-   Par::inputJSONCal.CheckStatus("sigmalized_residuals");
+   Par::inputYAMLCal.OpenFile(argv[1], "sigmalized_residuals");
+   Par::inputYAMLCal.CheckStatus("sigmalized_residuals");
 
-   Par::runName = Par::inputJSONCal["run_name"].asString();
+   Par::runName = Par::inputYAMLCal["run_name"].as<std::string>();
 
    // opening input file with parameters of a run
-   Par::inputJSONMain.OpenFile("input/" + Par::runName + "/main.json");
-   Par::inputJSONMain.CheckStatus("main");
+   Par::inputYAMLMain.OpenFile("input/" + Par::runName + "/main.yaml");
+   Par::inputYAMLMain.CheckStatus("main");
 
-   if (Par::inputJSONCal["detectors_to_calibrate"].size() == 0)
+   if (Par::inputYAMLCal["detectors_to_calibrate"].size() == 0)
    {
       CppTools::PrintInfo("No detectors are specified for calibrations");
       CppTools::PrintInfo("Exiting the program");
@@ -58,6 +58,8 @@ int main(int argc, char **argv)
    }
 
    TDirectory::AddDirectory(kFALSE);
+
+   Par::drawDValDistr = Par::inputYAMLCal["draw_dval_distr"].as<bool>();
 
    if (argc < 4) // Mode1
    {
@@ -69,9 +71,9 @@ int main(int argc, char **argv)
       system("rm -rf tmp/SigmalizedResiduals/*");
       system(("mkdir -p tmp/SigmalizedResiduals/" + Par::runName).c_str());
 
-      Par::numberOfIterations = Par::inputJSONCal["detectors_to_calibrate"].size()*
-                                Par::inputJSONCal["centrality_bins"].size()*
-                                Par::inputJSONCal["zdc_bins"].size()*4;
+      Par::numberOfIterations = Par::inputYAMLCal["detectors_to_calibrate"].size()*
+                                Par::inputYAMLCal["centrality_bins"].size()*
+                                Par::inputYAMLCal["zdc_bins"].size()*4;
 
       auto SingleThreadCall = [&](const unsigned long detectorBin, 
                                   const unsigned long variableBin)
@@ -87,7 +89,7 @@ int main(int argc, char **argv)
       std::thread pBarThr(PBarCall); 
 
       for (unsigned int detectorBin = 0; detectorBin < 
-           Par::inputJSONCal["detectors_to_calibrate"].size(); detectorBin++)
+           Par::inputYAMLCal["detectors_to_calibrate"].size(); detectorBin++)
       {
          for (unsigned long variableBin = 0; variableBin < Par::variableName.size(); variableBin++)
          { 
@@ -143,27 +145,41 @@ int main(int argc, char **argv)
       Par::centralityRangeTLatex.SetTextSize(0.06);
       Par::centralityRangeTLatex.SetNDC();
 
-      Par::numberOfIterations = 2.*Par::inputJSONCal["centrality_bins"].size()*
-                                Par::inputJSONCal["zdc_bins"].size();
+      Par::numberOfIterations = 2.*Par::inputYAMLCal["centrality_bins"].size()*
+                                Par::inputYAMLCal["zdc_bins"].size();
 
-      for (const Json::Value& pTBin: Par::inputJSONCal["pt_bins"])
+      for (const YAML::Node& pTBin: Par::inputYAMLCal["pt_bins"])
       {
-         Par::pTRanges.push_back(pTBin["min"].asDouble());
+         Par::pTRanges.push_back(pTBin["min"].as<double>());
       }
-      Par::pTRanges.push_back(Par::inputJSONCal["pt_bins"].back()["max"].asDouble());
+      Par::pTRanges.push_back(Par::inputYAMLCal["pt_bins"]
+                                               [Par::inputYAMLCal["pt_bins"].size() - 1]
+                                               ["max"].as<double>());
 
-      for (const Json::Value& centrality: Par::inputJSONCal["centrality_bins"])
+      for (const YAML::Node& zDCBin: Par::inputYAMLCal["zdc_bins"])
       {
-         Par::centralityRanges.push_back(centrality["min"].asDouble());
+         Par::zDCRanges.push_back(zDCBin["min"].as<double>());
       }
-      Par::centralityRanges.push_back(Par::inputJSONCal["centrality_bins"].back()["max"].asDouble());
+      Par::zDCRanges.push_back(Par::inputYAMLCal["zdc_bins"]
+                                                [Par::inputYAMLCal["zdc_bins"].size() - 1]
+                                                ["max"].as<double>());
+
+      for (const YAML::Node& centrality: Par::inputYAMLCal["centrality_bins"])
+      {
+         Par::centralityRanges.push_back(centrality["min"].as<double>());
+      }
+      Par::centralityRanges.
+         push_back(Par::inputYAMLCal["centrality_bins"]
+                                    [Par::inputYAMLCal["centrality_bins"].size() - 1]
+                                    ["max"].as<double>());
 
       Par::outputDir = "output/SigmalizedResiduals/" + Par::runName + "/";
 
-      Par::pTMin = Par::inputJSONCal["pt_bins"].front()["min"].asDouble();
-      Par::pTMax = Par::inputJSONCal["pt_bins"].back()["max"].asDouble();
+      Par::pTMin = Par::inputYAMLCal["pt_bins"][0]["min"].as<double>();
+      Par::pTMax = Par::inputYAMLCal["pt_bins"][Par::inputYAMLCal["pt_bins"].size() - 1]
+                                    ["max"].as<double>();
 
-      Par::fitNTries = Par::inputJSONCal["number_of_fit_tries"].asUInt();
+      Par::fitNTries = Par::inputYAMLCal["number_of_fit_tries"].as<unsigned int>();
 
       std::thread pBarThr(PBarCall); 
  
@@ -179,9 +195,9 @@ int main(int argc, char **argv)
 void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
                                                              const unsigned int variableBin)
 {
-   const Json::Value detector = Par::inputJSONCal["detectors_to_calibrate"][detectorBin];
+   const YAML::Node detector = Par::inputYAMLCal["detectors_to_calibrate"][detectorBin];
 
-   const std::string detectorName = detector["name"].asString();
+   const std::string detectorName = detector["name"].as<std::string>();
    const std::string variableName = Par::variableName[variableBin];
 
    system(("mkdir -p output/SigmalizedResiduals/" + Par::runName + "/" + detectorName).c_str());
@@ -201,12 +217,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                                      chargeNameShort + ".txt");
 
       // lambda expressions for TF1
-      const std::string meansFitFunc = 
-         "[](double *x, double *p) {return " + 
-         detector["means_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
-      const std::string sigmasFitFunc = 
-         "[](double *x, double *p) {return " + 
-         detector["sigmas_fit_func_" + variableName + "_" + chargeNameShort].asString() + ";}";
+      const std::string meansFitFunc = "[](double *x, double *p) {return " + 
+                                       detector["means_fit_func_" + variableName + 
+                                                "_" + chargeNameShort].as<std::string>() + ";}";
+      const std::string sigmasFitFunc = "[](double *x, double *p) {return " + 
+                                        detector["sigmas_fit_func_" + variableName + 
+                                                 "_" + chargeNameShort].as<std::string>() + ";}";
 
       const unsigned int numberOfParametersFitMeans = 
          ROOTTools::GetNumberOfParameters(meansFitFunc);
@@ -217,12 +233,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
                           numberOfParametersFitSigmas << std::endl;
 
       for (unsigned int centralityBin = 0; centralityBin < 
-           Par::inputJSONCal["centrality_bins"].size(); centralityBin++)
+           Par::inputYAMLCal["centrality_bins"].size(); centralityBin++)
       {
-         const Json::Value centrality = Par::inputJSONCal["centrality_bins"][centralityBin];
+         const YAML::Node centrality = Par::inputYAMLCal["centrality_bins"][centralityBin];
 
-         const std::string centralityRangeName = centrality["min"].asString() + "-" + 
-                                                 centrality["max"].asString() + "%"; 
+         const std::string centralityRangeName = centrality["min"].as<std::string>() + "-" + 
+                                                 centrality["max"].as<std::string>() + "%"; 
 
          // unique name for this bin to prevent ROOT 
          // printing warnings about replacing same named objects
@@ -231,7 +247,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
          // same as before but without percent; used for output file names
          const std::string centralityRangePathName = 
-            "_c" + centrality["min"].asString() + "-" + centrality["max"].asString();
+            "_c" + centrality["min"].as<std::string>() + "-" + centrality["max"].as<std::string>();
 
          Par::outputFile->mkdir((chargeName + "/" + centralityRangePathName).c_str());
          Par::outputFile->cd((chargeName + "/" + centralityRangePathName).c_str());
@@ -241,41 +257,33 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
          // histograms with weights representing means and sigmas
          TH2D distrMeansVsZDCVsPT(("means" + thisBinUniqueName).c_str(), "#mu", 
-                                  Par::inputJSONCal["zdc_bins"].size(), 
-                                  Par::inputJSONCal["zdc_bins"].front()["min"].asDouble(), 
-                                  Par::inputJSONCal["zdc_bins"].back()["max"].asDouble(),
+                                  Par::zDCRanges.size() - 1, &Par::zDCRanges[0],
                                   Par::pTRanges.size() - 1, &Par::pTRanges[0]);
          TH2D distrSigmasVsZDCVsPT(("sigmas" + thisBinUniqueName).c_str(), "#sigma", 
-                                   Par::inputJSONCal["zdc_bins"].size(), 
-                                   Par::inputJSONCal["zdc_bins"].front()["min"].asDouble(), 
-                                   Par::inputJSONCal["zdc_bins"].back()["max"].asDouble(),
+                                   Par::zDCRanges.size() - 1, &Par::zDCRanges[0],
                                    Par::pTRanges.size() - 1, &Par::pTRanges[0]);
          // histograms with weights representing the difference between means and sigmas and
          // a fit parameter of means and sigmas
          TH2D distrMeansDiffVsZDCVsPT(("means diff" + thisBinUniqueName).c_str(), 
                                       "#cbar#mu - #mu_{fit}#cbar/#mu",
-                                      Par::inputJSONCal["zdc_bins"].size(), 
-                                      Par::inputJSONCal["zdc_bins"].front()["min"].asDouble(), 
-                                      Par::inputJSONCal["zdc_bins"].back()["max"].asDouble(),
+                                      Par::zDCRanges.size() - 1, &Par::zDCRanges[0],
                                       Par::pTRanges.size() - 1, &Par::pTRanges[0]);
          TH2D distrSigmasDiffVsZDCVsPT(("sigmas diff" + thisBinUniqueName).c_str(), 
                                        "#cbar#sigma - #sigma_{fit}#cbar/#sigma",
-                                       Par::inputJSONCal["zdc_bins"].size(), 
-                                       Par::inputJSONCal["zdc_bins"].front()["min"].asDouble(), 
-                                       Par::inputJSONCal["zdc_bins"].back()["max"].asDouble(),
+                                       Par::zDCRanges.size() - 1, &Par::zDCRanges[0],
                                        Par::pTRanges.size() - 1, &Par::pTRanges[0]);
 
-         for (const Json::Value& zDC : Par::inputJSONCal["zdc_bins"])
+         for (const YAML::Node& zDC : Par::inputYAMLCal["zdc_bins"])
          { 
             Par::numberOfCalls++;
  
-            const std::string zDCRangeName = zDC["min"].asString() + "<zDC<" + 
-                                             zDC["max"].asString();
-            const std::string zDCRangePathName = "_zDC" + zDC["min"].asString() + 
-                                                 "-" + zDC["max"].asString();
+            const std::string zDCRangeName = zDC["min"].as<std::string>() + "<zDC<" + 
+                                             zDC["max"].as<std::string>();
+            const std::string zDCRangePathName = "_zDC" + zDC["min"].as<std::string>() + 
+                                                 "-" + zDC["max"].as<std::string>();
 
-            const double zDCMin = zDC["min"].asDouble();
-            const double zDCMax = zDC["max"].asDouble();
+            const double zDCMin = zDC["min"].as<double>();
+            const double zDCMax = zDC["max"].as<double>();
 
             // name of histogram
             const std::string distrVariableName =  
@@ -406,7 +414,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          double meanYMin = 1e31, meanYMax = -1e31;
          double sigmaYMin = 1e31, sigmaYMax = -1e31;
 
-         for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
+         for (unsigned long i = 0; i < Par::inputYAMLCal["zdc_bins"].size(); i++)
          {
             meanYMin = CppTools::Minimum(meanYMin, TMath::MinElement(grVMeansVsPT[i].GetN(), 
                                                                      grVMeansVsPT[i].GetY()));
@@ -417,20 +425,20 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             sigmaYMax = CppTools::Maximum(sigmaYMax, TMath::MaxElement(grVSigmasVsPT[i].GetN(), 
                                                                        grVSigmasVsPT[i].GetY()));
 
-            const Json::Value zDC = Par::inputJSONCal["zdc_bins"][static_cast<int>(i)];
+            const YAML::Node zDC = Par::inputYAMLCal["zdc_bins"][static_cast<int>(i)];
 
-            grVMeansVsPT[i].SetMarkerStyle(zDC["marker_style"].asInt());
+            grVMeansVsPT[i].SetMarkerStyle(zDC["marker_style"].as<short>());
             grVMeansVsPT[i].SetMarkerSize(1.4);
-            grVMeansVsPT[i].SetMarkerColorAlpha(zDC["color"].asInt(), 0.8);
-            grVMeansVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.8);
-            fVMeansVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.9);
+            grVMeansVsPT[i].SetMarkerColorAlpha(zDC["color"].as<short>(), 0.8);
+            grVMeansVsPT[i].SetLineColorAlpha(zDC["color"].as<short>(), 0.8);
+            fVMeansVsPT[i].SetLineColorAlpha(zDC["color"].as<short>(), 0.9);
             fVMeansVsPT[i].SetLineStyle(3);
 
-            grVSigmasVsPT[i].SetMarkerStyle(zDC["marker_style"].asInt());
+            grVSigmasVsPT[i].SetMarkerStyle(zDC["marker_style"].as<short>());
             grVSigmasVsPT[i].SetMarkerSize(1.4);
-            grVSigmasVsPT[i].SetMarkerColorAlpha(zDC["color"].asInt(), 0.8);
-            grVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.8);
-            fVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].asInt(), 0.9);
+            grVSigmasVsPT[i].SetMarkerColorAlpha(zDC["color"].as<short>(), 0.8);
+            grVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].as<short>(), 0.8);
+            fVSigmasVsPT[i].SetLineColorAlpha(zDC["color"].as<short>(), 0.9);
             fVSigmasVsPT[i].SetLineStyle(2);
          }
 
@@ -457,12 +465,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          gPad->Add(&meansFrame, "AXIS");
          gPad->Add(&meansFrame, "SAME AXIS X+ Y+");
 
-         for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
+         for (unsigned long i = 0; i < Par::inputYAMLCal["zdc_bins"].size(); i++)
          {
             const std::string zDCRangeName = 
-               Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["min"].asString() + 
+               Par::inputYAMLCal["zdc_bins"][static_cast<int>(i)]["min"].as<std::string>() + 
                "<z_{DC}<" + 
-               Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["max"].asString();
+               Par::inputYAMLCal["zdc_bins"][static_cast<int>(i)]["max"].as<std::string>();
 
             legend.AddEntry(&grVMeansVsPT[i], zDCRangeName.c_str(), "P");
             gPad->Add(&grVMeansVsPT[i], "SAME P");
@@ -488,12 +496,12 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
          gPad->Add(&sigmasFrame, "AXIS");
          gPad->Add(&sigmasFrame, "SAME AXIS X+ Y+");
 
-         for (unsigned long i = 0; i < Par::inputJSONCal["zdc_bins"].size(); i++)
+         for (unsigned long i = 0; i < Par::inputYAMLCal["zdc_bins"].size(); i++)
          { 
             const std::string zDCRangeName = 
-               Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["min"].asString() + 
+               Par::inputYAMLCal["zdc_bins"][static_cast<int>(i)]["min"].as<std::string>() + 
                "<z_{DC}<" + 
-               Par::inputJSONCal["zdc_bins"][static_cast<int>(i)]["max"].asString();
+               Par::inputYAMLCal["zdc_bins"][static_cast<int>(i)]["max"].as<std::string>();
 
             legend.AddEntry(&grVSigmasVsPT[i], zDCRangeName.c_str(), "P");
             gPad->Add(&grVSigmasVsPT[i], "SAME P");
@@ -554,10 +562,10 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
 void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &grMeans, 
                                                     TGraphErrors &grSigmas, 
-                                                    const Json::Value& detector, 
+                                                    const YAML::Node& detector, 
                                                     const unsigned int variableBin, 
-                                                    const Json::Value& zDC, const int charge, 
-                                                    const Json::Value& centrality)
+                                                    const YAML::Node& zDC, const int charge, 
+                                                    const YAML::Node& centrality)
 {
    const double minBinX = hist->GetXaxis()->GetBinLowEdge(1);
    const double maxBinX = hist->GetXaxis()->GetBinUpEdge(hist->GetXaxis()->GetNbins());
@@ -567,21 +575,21 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    const std::string chargeName = ((charge > 0) ? "charge>0" : "charge<0");
    const std::string chargeNameShort = ((charge > 0) ? "pos" : "neg");
 
-   const std::string centralityRangeName = centrality["min"].asString() + "-" + 
-                                           centrality["max"].asString() + "%";
-   const std::string centralityRangePathName = "_c" + centrality["min"].asString() + 
-                                                 "-" + centrality["max"].asString();
+   const std::string centralityRangeName = centrality["min"].as<std::string>() + "-" + 
+                                           centrality["max"].as<std::string>() + "%";
+   const std::string centralityRangePathName = "_c" + centrality["min"].as<std::string>() + 
+                                                 "-" + centrality["max"].as<std::string>();
 
-   const std::string zDCRangeName = zDC["min"].asString() + "<zDC<" + zDC["max"].asString();
-   const std::string zDCRangePathName = "_zDC" + zDC["min"].asString() + 
-                                        "-" + zDC["max"].asString();
+   const std::string zDCRangeName = zDC["min"].as<std::string>() + "<zDC<" + zDC["max"].as<std::string>();
+   const std::string zDCRangePathName = "_zDC" + zDC["min"].as<std::string>() + 
+                                        "-" + zDC["max"].as<std::string>();
 
    TCanvas canvDValVsPT(("all fits, " + zDCRangeName).c_str(), "", 
-                        Par::inputJSONCal["pt_nbinsx"].asDouble()*400.,
-                        Par::inputJSONCal["pt_nbinsy"].asDouble()*400.);
+                        Par::inputYAMLCal["pt_nbinsx"].as<double>()*400.,
+                        Par::inputYAMLCal["pt_nbinsy"].as<double>()*400.);
 
-   canvDValVsPT.Divide(Par::inputJSONCal["pt_nbinsx"].asInt(), 
-                       Par::inputJSONCal["pt_nbinsy"].asInt());
+   canvDValVsPT.Divide(Par::inputYAMLCal["pt_nbinsx"].as<int>(), 
+                       Par::inputYAMLCal["pt_nbinsy"].as<int>());
 
 
    // functions for fits of dz and dphi distributions
@@ -597,27 +605,28 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    // minimum and maximum pT of bins that are used
    std::vector<double> binsPTMin, binsPTMax;
  
-   for (const Json::Value& pTBin : Par::inputJSONCal["pt_bins"])
+   for (const YAML::Node& pTBin : Par::inputYAMLCal["pt_bins"])
    {
-      const double pT = CppTools::Average(pTBin["min"].asDouble(), pTBin["max"].asDouble());
+      const double pT = CppTools::Average(pTBin["min"].as<double>(), pTBin["max"].as<double>());
       if (pT < Par::pTMin || pT > Par::pTMax) continue;
  
       TH1D *distrVariableProj = hist->
          ProjectionX(((std::string) hist->GetName() + "_projX_" + std::to_string(pT)).c_str(), 
-                     hist->GetYaxis()->FindBin(pTBin["min"].asDouble() + 1e-6), 
-                     hist->GetYaxis()->FindBin(pTBin["max"].asDouble() - 1e-6),
-                     hist->GetZaxis()->FindBin(centrality["min"].asDouble() + 1e-6),
-                     hist->GetZaxis()->FindBin(centrality["max"].asDouble() - 1e-6));
+                     hist->GetYaxis()->FindBin(pTBin["min"].as<double>() + 1e-6), 
+                     hist->GetYaxis()->FindBin(pTBin["max"].as<double>() - 1e-6),
+                     hist->GetZaxis()->FindBin(centrality["min"].as<double>() + 1e-6),
+                     hist->GetZaxis()->FindBin(centrality["max"].as<double>() - 1e-6));
 
-      const std::string pTRangeName = CppTools::DtoStr(pTBin["min"].asDouble(), 1) + "<pT<" + 
-                                      CppTools::DtoStr(pTBin["max"].asDouble(), 1);
+      const std::string pTRangeName = CppTools::DtoStr(pTBin["min"].as<double>(), 1) + "<pT<" + 
+                                      CppTools::DtoStr(pTBin["max"].as<double>(), 1);
 
       if (distrVariableProj->Integral(1, distrVariableProj->GetXaxis()->GetNbins()) < 
           Par::minIntegralValue) 
       {
          CppTools::PrintInfo("Integral is insufficient for projection of " + variableName + 
-                             ", " + detector["name"].asString() + ", " + chargeName + " at " + 
-                             zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
+                             ", " + detector["name"].as<std::string>() + ", " + 
+                             chargeName + " at " + zDCRangeName + ", " + 
+                             centralityRangeName + ", " + pTRangeName);
          continue;
       }
 
@@ -643,8 +652,9 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       if (minX > maxX) 
       {
          CppTools::PrintWarning("Something wrong for projection of " + variableName + 
-                                ", " + detector["name"].asString() + ", " + chargeName + " at " + 
-                                zDCRangeName + ", " + centralityRangeName + ", " + pTRangeName);
+                                ", " + detector["name"].as<std::string>() + ", " + 
+                                chargeName + " at " + zDCRangeName + ", " + 
+                                centralityRangeName + ", " + pTRangeName);
          continue;
       }
 
@@ -866,9 +876,9 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       }
 
       if (fabs(fitFuncDVal.back().GetParameter(1)) < 
-          detector["abs_max_fit_" + variableName].asDouble() && 
+          detector["abs_max_fit_" + variableName].as<double>() && 
           fabs(fitFuncDVal.back().GetParameter(2)) < 
-          detector["abs_max_fit_" + variableName].asDouble())
+          detector["abs_max_fit_" + variableName].as<double>())
       {
          grMeans.AddPoint(pT, fitFuncDVal.back().GetParameter(1));
          grSigmas.AddPoint(pT, fabs(fitFuncDVal.back().GetParameter(2)));
@@ -876,8 +886,8 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
          grYield.AddPoint(pT, GetYield(distrVariableProj, fitFuncBG.back(), 
                           fitFuncDVal.back().GetParameter(1), fitFuncDVal.back().GetParameter(2)));
 
-         binsPTMin.push_back(pTBin["min"].asDouble());
-         binsPTMax.push_back(pTBin["max"].asDouble());
+         binsPTMin.push_back(pTBin["min"].as<double>());
+         binsPTMax.push_back(pTBin["max"].as<double>());
 
          // relative uncertainties of means are inconsistent since absolute uncertainty does not
          // depend on the position of the mean (it can be close to 0 or much larger number) 
@@ -921,26 +931,25 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
    if (grMeans.GetN() == 0) 
    {
       CppTools::PrintError("Graph is empty for " + variableName + ", " + 
-                           detector["name"].asString() + ", " + chargeName + 
+                           detector["name"].as<std::string>() + ", " + chargeName + 
                            " at " + zDCRangeName + ", " + centralityRangeName);
    }
 
    canvDValVsPT.Write();
 
-   // printing TCanvas with approximations for every pT bin
-   // commented since it takes too much space too print every fit
-   // (~1GB for Run14HeAu200 for all EMCal sectors, dphi, dz)
-   /* 
-   const std::string outputFileNameNoExt = 
-      "output/SigmalizedResiduals/" + Par::runName + "/" + detector["name"].asString() + "/" + 
-      variableName + "_" + chargeNameShort + 
-      centralityRangePathName + zDCRangePathName;
+   if (Par::drawDValDistr)
+   {
+      const std::string outputFileNameNoExt = 
+         "output/SigmalizedResiduals/" + Par::runName + "/" + 
+         detector["name"].as<std::string>() + "/" + 
+         variableName + "_" + chargeNameShort + 
+         centralityRangePathName + zDCRangePathName;
 
-   ROOTTools::PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false);
-   */
+      ROOTTools::PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false);
+   }
 
    // applying bin shift correction
-   // commented since it is very inconsistent; maybe will be implemented later
+   // commented since it is very inconsistent and unreliable; maybe will be implemented later
    /*
    TF1 yieldFit(("yield fit " + zDCRangeName).c_str(), "exp(pol2(0)) + exp(pol2(3)) + expo(6)");
    yieldFit.SetRange(Par::pTMin, Par::pTMax);
@@ -954,7 +963,7 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
          for (int k = 0; k <= 100; k++)
          {
             integral += yieldFit.Eval(binsPTMin[j] + (binsPTMax[j] - binsPTMin[j])*
-                                         static_cast<double>(k)/100.);
+                                      static_cast<double>(k)/100.);
          }
          grYield.SetPointX(j, yieldFit.GetX(integral/101., binsPTMin[j], binsPTMax[j]));
       }

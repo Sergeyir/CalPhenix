@@ -7,3 +7,6 @@
 [submodule "ProgressBar"]
 	path = ProgressBar
 	url = git@github.com:Sergeyir/ProgressBar
+[submodule "yaml-cpp"]
+	path = yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp
