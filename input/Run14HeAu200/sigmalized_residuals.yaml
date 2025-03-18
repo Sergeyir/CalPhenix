@@ -1,4 +1,4 @@
-# This file contains all information for SigmalizedResiduals and CheckSigmalizedResiduals executables
+# This file contains all information about sigmalized residuals calibration 
 --- 
 status: sigmalized_residuals # required field
 run_name: Run14HeAu200

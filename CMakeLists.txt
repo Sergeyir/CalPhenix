@@ -62,3 +62,4 @@ link_libraries(InputYAMLReader)
 
 add_executable(SigmalizedResiduals ${CMAKE_SOURCE_DIR}/src/SigmalizedResiduals.cpp)
 add_executable(CheckSigmalizedResiduals ${CMAKE_SOURCE_DIR}/src/CheckSigmalizedResiduals.cpp)
+add_executable(EMCTowerOffset ${CMAKE_SOURCE_DIR}/src/EMCTowerOffset.cpp)

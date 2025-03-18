@@ -1,0 +1,37 @@
+# This file contains all important information about EMCal timing calibration
+status: emc_timing
+run_name: Run14HeAu200
+fit_func: "[0] + [1]/(x^[2])"
+sectors_to_calibrate:
+  - 
+    name: EMCale0
+    number_of_y_towers: 48
+    number_of_z_towers: 97
+  - 
+    name: EMCale1
+    number_of_y_towers: 48
+    number_of_z_towers: 97
+  - 
+    name: EMCale2
+    number_of_y_towers: 36
+    number_of_z_towers: 72
+  - 
+    name: EMCale3
+    number_of_y_towers: 36
+    number_of_z_towers: 72
+  - 
+    name: EMCalw0
+    number_of_y_towers: 36
+    number_of_z_towers: 72
+  - 
+    name: EMCalw1
+    number_of_y_towers: 36
+    number_of_z_towers: 72
+  - 
+    name: EMCalw2
+    number_of_y_towers: 36
+    number_of_z_towers: 72
+  - 
+    name: EMCalw3
+    number_of_y_towers: 36
+    number_of_z_towers: 72

@@ -1,6 +1,6 @@
 /** 
  *  @file   SigmalizedResiduals.hpp 
- *  @brief  Contains declarations of functions and container Par used for estimation of values for calibration of sigmalized residuals dphi and dz
+ *  @brief  Contains declarations of functions and variables that are used for estimation of values for calibration of sigmalized residuals dphi and dz
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
@@ -42,67 +42,6 @@
  */
 namespace SigmalizedResiduals
 {
-   /*! @namespace Par
-    * @brief namespace containing global parameters (objects and variables) for SigmalizeResiduals.cpp and CheckSigmalizeResiduals.cpp 
-    *
-    * Used to prevent having many global variables and objects without any scope limitation in the program. The name Par is not an issue since it's usage and scope is limited to only one file (+ it's header) that will be compiled into executable
-    */
-   namespace Par
-   {
-      /// Contents of input .json file for calibration
-      InputYAMLReader inputYAMLCal;
-      /// Contents of input .json file for run configuration
-      InputYAMLReader inputYAMLMain;
-      /// Name of run (e.g. Run14HeAu200 or Run7AuAu200)
-      std::string runName;
-      // Charges of particles to be analyzed independently
-      const std::array<int, 2> particleCharges{1, -1};
-      /// Names of variables to be calibrated
-      const std::array<std::string, 2> variableName{"dphi", "dz"};
-      /// Names of variables to be calibrated in LaTex format
-      const std::array<std::string, 2> variableNameTex{"d#varphi", "dz_{DC}"};
-      /// Useful objects to employ for quick TLatex insertions
-      TLatex pTRangeTLatex, zDCRangeTLatex, chargeTLatex, centralityRangeTLatex;
-      /// Input file (from taxi output)
-      std::unique_ptr<TFile> inputFile;
-      /// Output file
-      std::unique_ptr<TFile> outputFile;
-      /// Output directory
-      std::string outputDir;
-      /// Minimum pT of the whole pT range
-      double pTMin;
-      /// Maximum pT of the whole pT range
-      double pTMax;
-      /// pT ranges for ROOT TAxis
-      std::vector<double> pTRanges;
-      /// zDC ranges for ROOT TAxis
-      std::vector<double> zDCRanges;
-      /// Centrality ranges
-      std::vector<double> centralityRanges;
-      /// pProgress bar - shows progress (see ProgressBar)
-      ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
-      /// Value that shows whether the computation part of this program is finished; the other part joins the threads and finishes the program
-      bool isProcessFinished = false;
-      /// Overall number of iterations that the program will make
-      unsigned long numberOfIterations = 0;
-      /// Number of calls (e.g. calls of a function in loop with numberOfIterations number of iterations)
-      unsigned long numberOfCalls = 0;
-      /// If true ProgressBar is printed; else the progress is written in tmp file (used if the program calls itself via shell)
-      bool showProgress = true;
-      /// Minimum number of entries for the histogram to be approximated. If this requirement for this value is not met warning will be printed but the program will not finish
-      const double minIntegralValue = 3e2;  
-      /// Number of consequent fits of dphi and dz distributions for better approximation results
-      /// each consequent fit decreases the limits around value from previous fit for every parameter
-      /// which makes bettter gradual gradient descent of approximation parameters since ROOT built in
-      /// approximation algorithm has only limited resource to perform the gradient descent
-      /// This value will be read and updated from .json calibration input file
-      unsigned int fitNTries = 1;
-      /// flag that tells the program whether dphi and dz distributions for all bins (pT, zDC, centrality, charge) should be drawn
-      bool drawDValDistr = false;
-      /// Mode in which the program was launched in; see main function description for more detail
-      int programMode;
-   };
-
 /*! @brief Calls PerformFitsForDifferentPT for the specified detector and variable for different centrality and zDC ranges
  * @param[in] detectorBin detector bin (i.e. element of array in "detectors_to_calibrate" field in input .json file) 
  * @param[in] variableBin variable bin (0 for dphi and 1 for dz) 
@@ -133,6 +72,58 @@ namespace SigmalizedResiduals
    void PBarCall();
    /// @brief If showProgress set to false in main this function will calculate how many calls have passed from .tmp files and set this value for Par::numberOfCalls
    void SetNumberOfCalls();
+   /// Contents of input .json file for calibration
+   InputYAMLReader inputYAMLCal;
+   /// Contents of input .json file for run configuration
+   InputYAMLReader inputYAMLMain;
+   /// Name of run (e.g. Run14HeAu200 or Run7AuAu200)
+   std::string runName;
+   // Charges of particles to be analyzed independently
+   const std::array<int, 2> particleCharges{1, -1};
+   /// Names of variables to be calibrated
+   std::array<std::string, 2> variableName{"dphi", "dz"};
+   /// Names of variables to be calibrated in LaTex format
+   std::array<std::string, 2> variableNameTex{"d#varphi", "dz_{DC}"};
+   /// Useful objects to employ for quick TLatex insertions
+   TLatex pTRangeTLatex, zDCRangeTLatex, chargeTLatex, centralityRangeTLatex;
+   /// Input file (from taxi output)
+   std::unique_ptr<TFile> inputFile;
+   /// Output file
+   std::unique_ptr<TFile> outputFile;
+   /// Output directory
+   std::string outputDir;
+   /// Minimum pT of the whole pT range
+   double pTMin;
+   /// Maximum pT of the whole pT range
+   double pTMax;
+   /// pT ranges for ROOT TAxis
+   std::vector<double> pTRanges;
+   /// zDC ranges for ROOT TAxis
+   std::vector<double> zDCRanges;
+   /// Centrality ranges
+   std::vector<double> centralityRanges;
+   /// pProgress bar - shows progress (see ProgressBar)
+   ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
+   /// Value that shows whether the computation part of this program is finished; the other part joins the threads and finishes the program
+   bool isProcessFinished = false;
+   /// Overall number of iterations that the program will make
+   unsigned long numberOfIterations = 0;
+   /// Number of calls (e.g. calls of a function in loop with numberOfIterations number of iterations)
+   unsigned long numberOfCalls = 0;
+   /// If true ProgressBar is printed; else the progress is written in tmp file (used if the program calls itself via shell)
+   bool showProgress = true;
+   /// Minimum number of entries for the histogram to be approximated. If this requirement for this value is not met warning will be printed but the program will not finish
+   const double minIntegralValue = 3e2;  
+   /// Number of consequent fits of dphi and dz distributions for better approximation results
+   /// each consequent fit decreases the limits around value from previous fit for every parameter
+   /// which makes bettter gradual gradient descent of approximation parameters since ROOT built in
+   /// approximation algorithm has only limited resource to perform the gradient descent
+   /// This value will be read and updated from .json calibration input file
+   unsigned int fitNTries = 1;
+   /// flag that tells the program whether dphi and dz distributions for all bins (pT, zDC, centrality, charge) should be drawn
+   bool drawDValDistr = false;
+   /// Mode in which the program was launched in; see main function description for more detail
+   int programMode;
 };
 /*! @brief Main function
  *
