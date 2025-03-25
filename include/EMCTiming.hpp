@@ -55,7 +55,7 @@ namespace EMCTiming
     *
     * @param[in] sector EMCal sector
     */
-   void ProcessSector(const YAML::Node& sector);
+   void ProcessSector(const int sectorBin);
    /// @brief Function for ProgressBar thread call
    void PBarCall();
    /// @brief If showProgress set to false in main this function will calculate how many calls have passed from .tmp files and set this value for Par::numberOfCalls

@@ -72,8 +72,8 @@ int main(int argc, char **argv)
       system(("mkdir -p tmp/SigmalizedResiduals/" + runName).c_str());
 
       numberOfIterations = inputYAMLCal["detectors_to_calibrate"].size()*
-                                inputYAMLCal["centrality_bins"].size()*
-                                inputYAMLCal["zdc_bins"].size()*4;
+                           inputYAMLCal["centrality_bins"].size()*
+                           inputYAMLCal["zdc_bins"].size()*4;
 
       auto SingleThreadCall = [&](const unsigned long detectorBin, 
                                   const unsigned long variableBin)
@@ -405,7 +405,8 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
             if (!showProgress)
             {
                std::ofstream progressFile("tmp/SigmalizedResiduals/" + runName + "/" + 
-                                     std::to_string(detectorBin) + std::to_string(variableBin));
+                                          std::to_string(detectorBin) + 
+                                          std::to_string(variableBin));
                progressFile << numberOfCalls;
             }
          }

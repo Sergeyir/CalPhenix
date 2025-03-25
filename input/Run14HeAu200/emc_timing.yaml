@@ -2,6 +2,7 @@
 status: emc_timing
 run_name: Run14HeAu200
 fit_func: "[0] + [1]/(x^[2])"
+number_of_fit_tries: 5 # number of consecutive approximations; used to improve ROOT algorithm; recommended value: 5
 sectors_to_calibrate:
   - 
     name: EMCale0

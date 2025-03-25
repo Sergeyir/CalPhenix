@@ -12,7 +12,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-#find_package(ROOT QUIET)
+find_package(ROOT QUIET)
 
 if(${ROOT_FOUND})
    message(STATUS "ROOT package found")
@@ -29,7 +29,7 @@ else()
    message(FATAL_ERROR "ROOT not found: install it via package manager or set ROOT_PATH if you installed it manually")
 endif()
 
-# json was swapped for yaml; if json will be used this field will be uncommented
+# json was changed for yaml; if json will be used this field will be uncommented
 #if (EXISTS /usr/include/json)
 #   message(STATUS "jsoncpp package found")
 #elseif (EXISTS /usr/include/jsoncpp)
@@ -45,10 +45,10 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/include ${ROOT_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/CppTools/include ${CMAKE_SOURCE_DIR}/ROOTTools/include ${CMAKE_SOURCE_DIR}/ProgressBar/include)
 
-add_subdirectory(yaml-cpp)
-add_subdirectory(CppTools)
-add_subdirectory(ROOTTools)
-add_subdirectory(ProgressBar)
+add_subdirectory(yaml-cpp EXCLUDE_FROM_ALL)
+add_subdirectory(CppTools EXCLUDE_FROM_ALL)
+add_subdirectory(ROOTTools EXCLUDE_FROM_ALL)
+add_subdirectory(ProgressBar EXCLUDE_FROM_ALL)
 
 #link_libraries(jsoncpp)
 link_libraries(yaml-cpp)
