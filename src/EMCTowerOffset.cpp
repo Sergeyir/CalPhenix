@@ -201,6 +201,8 @@ void EMCTiming::ProcessSector(const int sectorBin)
 void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
                                           const int yTowerIndex, const int zTowerIndex)
 {
+   if (distr->Integral() < 1e-15) return;
+
    // distribution of means of Y projections 
    TH1D meanDistr(("mean distribution of iy" + std::to_string(yTowerIndex) + 
                    " iz" + std::to_string(zTowerIndex)).c_str(), 
@@ -214,8 +216,6 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
 
    double minADC = 1e31;
    double maxADC = -1e31;
-
-   if (distr->Integral() < 1e-15) return;
 
    for (int i = 1; i <= distr->GetXaxis()->GetNbins(); i++)
    {
