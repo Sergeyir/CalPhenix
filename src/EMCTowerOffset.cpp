@@ -130,10 +130,15 @@ int main(int argc, char **argv)
 
       if (argc > 4) showProgress = static_cast<bool>(std::stoi(argv[4]));
 
-      system(("mkdir -p output/EMCTCalibration/" + runName + 
+      system(("mkdir -p output/EMCTCalibration/" + runName + "/" + 
               "/CalibrationParameters").c_str());
 
+      system(("mkdir -p output/EMCTCalibration/" + runName + "/" + 
+              inputYAMLCal["sectors_to_calibrate"][std::stoi(argv[2])]
+                          ["name"].as<std::string>()).c_str());
+
       fitNTries = inputYAMLCal["number_of_fit_tries"].as<unsigned int>();
+      fitADCMin = inputYAMLCal["fit_adc_min"].as<double>();
 
       std::thread pBarThr(PBarCall); 
 
@@ -186,7 +191,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
          distrTVsADCVsZTower->GetZaxis()->SetRange(j + 1, j + 1); // j + 1 to get the bin
 
          PerformFitsForSingleTower(static_cast<TH2D *>(distrTVsADCVsZTower->Project3D("xy")), 
-                                   fitFunc, i, j);
+                                   fitFunc, sectorName, i, j);
 
          if (!showProgress)
          {
@@ -198,7 +203,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
    }
 }
 
-void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
+void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
                                           const int yTowerIndex, const int zTowerIndex)
 {
    if (distr->Integral() < 1e-15) return;
@@ -214,26 +219,23 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
    double minT = 1e31;
    double maxT = -1e31;
 
-   double minADC = 1e31;
-   double maxADC = -1e31;
+   int minADCBin = 9999;
+   int maxADCBin = -9999;
 
-   for (int i = 1; i <= distr->GetXaxis()->GetNbins(); i++)
+   for (int i = distr->GetXaxis()->FindBin(fitADCMin); i <= distr->GetXaxis()->GetNbins(); i++)
    {
-      if (distr->GetXaxis()->GetBinUpEdge(i) < 200.) continue;
-
       TH1D *distrProj = distr->
          ProjectionY(((std::string) distr->GetName() + "_px_" + std::to_string(i)).c_str(), i, i);
 
-      if (distrProj->Integral(distrProj->GetXaxis()->FindBin(201), 
-                              distrProj->GetXaxis()->GetNbins()) < 1e-15) continue;
+      if (distrProj->Integral() < 1e-15) continue;
 
       meanDistr.SetBinContent(i, distrProj->GetMean());
       meanDistr.SetBinError(i, distrProj->GetMeanError());
 
-      minADC = CppTools::Minimum(minADC, distr->GetXaxis()->GetBinLowEdge(i));
-      maxADC = CppTools::Maximum(maxADC, distr->GetXaxis()->GetBinUpEdge(i));
+      minADCBin = CppTools::Minimum(minADCBin, i);
+      maxADCBin = CppTools::Maximum(maxADCBin, i);
 
-      for (int j = 1; j < distrProj->GetXaxis()->GetNbins(); j++)
+      for (int j = 1; j <= distrProj->GetXaxis()->GetNbins(); j++)
       {
          if (distrProj->GetBinContent(j) < 1e-15) continue;
 
@@ -245,13 +247,14 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
       {
          if (distrProj->GetBinContent(j) < 1e-15) continue;
 
-         if (maxT > distrProj->GetXaxis()->GetBinLowEdge(j)) break;
+         if (maxT > distrProj->GetXaxis()->GetBinUpEdge(j)) break;
          else maxT = distrProj->GetXaxis()->GetBinUpEdge(j);
       }
    }
 
    fitFunc.SetParameter(0, minT);
-   fitFunc.SetRange(minADC/1.5, maxADC*1.5);
+   fitFunc.SetRange(distr->GetXaxis()->GetBinLowEdge(minADCBin)/1.5, 
+                    distr->GetXaxis()->GetBinUpEdge(maxADCBin)*1.5);
 
    meanDistr.SetMinimum(minT - 5.);
    meanDistr.SetMaximum(maxT + 5.);
@@ -270,7 +273,6 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
       }
    }
 
-
    TCanvas meanCanv("mean distr", "",  1000, 500);
    meanCanv.Divide(2);
 
@@ -281,7 +283,7 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
    meanDistr.DrawClone();
    fitFunc.DrawClone("SAME");
 
-   ROOTTools::PrintCanvas(&meanCanv, ("output/EMCTCalibration/" + runName + 
+   ROOTTools::PrintCanvas(&meanCanv, ("output/EMCTCalibration/" + runName + "/" + sectorName +
                                       "/mean_iy" + std::to_string(yTowerIndex) + 
                                       "_iz" + std::to_string(zTowerIndex)).c_str());
 }

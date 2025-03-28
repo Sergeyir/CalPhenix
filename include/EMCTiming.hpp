@@ -49,7 +49,7 @@ namespace EMCTiming
     * @param[in] yTowerIndex y index of the tower 
     * @param[in] zTowerIndex y index of the tower 
     */
-   void PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc,
+   void PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
                                   const int yTowerIndex, const int zTowerIndex);
    /*! @brief Calls PerformFitsForSingleTower for different towers in a given sector
     *
@@ -84,6 +84,8 @@ namespace EMCTiming
    /// approximation algorithm has only limited resource to perform the gradient descent
    /// This value will be read and updated from .yaml calibration input file
    unsigned int fitNTries = 5;
+   /// minimum value of ADC for the fit
+   double fitADCMin = 0.;
    /// Mode in which the program was launched in; see main function description for more detail
    int programMode;
 };
