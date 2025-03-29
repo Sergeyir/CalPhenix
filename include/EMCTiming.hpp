@@ -42,14 +42,14 @@
  */
 namespace EMCTiming
 {
-   /*! @brief Performs t vs ADC fit for a single tower
+   /*! @brief Performs t vs ADC fit for a single tower. If the data was not empty and fit was succesfully performed returns true; else fasle.
     *
     * @param[in] distr histogram containing t vs ADC distribution for the single tower
     * @param[in] fitFunc function that will be used for approximation 
     * @param[in] yTowerIndex y index of the tower 
     * @param[in] zTowerIndex y index of the tower 
     */
-   void PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
+   bool PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
                                   const int yTowerIndex, const int zTowerIndex);
    /*! @brief Calls PerformFitsForSingleTower for different towers in a given sector
     *

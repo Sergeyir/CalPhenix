@@ -46,6 +46,8 @@ int main(int argc, char **argv)
 
    runName = inputYAMLCal["run_name"].as<std::string>();
 
+   CheckInputFile("data/EMCTiming/" + runName + "/sum.root");
+
    // opening input file with parameters of a run
    inputYAMLMain.OpenFile("input/" + runName + "/main.yaml");
    inputYAMLMain.CheckStatus("main");
@@ -130,10 +132,10 @@ int main(int argc, char **argv)
 
       if (argc > 4) showProgress = static_cast<bool>(std::stoi(argv[4]));
 
-      system(("mkdir -p output/EMCTCalibration/" + runName + "/" + 
-              "/CalibrationParameters").c_str());
+      outputDir = "output/EMCTCalibration/" + runName + "/";
+      system((outputDir + "CalibrationParameters").c_str());
 
-      system(("mkdir -p output/EMCTCalibration/" + runName + "/" + 
+      system(("mkdir -p output/" + runName + "/EMCTCalibration/" + 
               inputYAMLCal["sectors_to_calibrate"][std::stoi(argv[2])]
                           ["name"].as<std::string>()).c_str());
 
@@ -158,12 +160,13 @@ void EMCTiming::ProcessSector(const int sectorBin)
 {
    const YAML::Node sector = inputYAMLCal["sectors_to_calibrate"][sectorBin];
    const std::string sectorName = sector["name"].as<std::string>();
+
    const int numberOfYTowers = sector["number_of_y_towers"].as<int>();
    const int numberOfZTowers = sector["number_of_z_towers"].as<int>();
 
-   TFile inputFile(("./data/" + runName + "/EMCTiming/sum.root").c_str());
+   TFile inputFile(("data/EMCTiming/" + runName + "/sum.root").c_str());
 
-   TF1 fitFunc("t vs ADC fit", inputYAMLCal["fit_func"].as<std::string>().c_str());
+   std::ofstream parametersOutput("output/" + runName + "/EMCTCalibration/CalibrationParameters/tower_offset_" + sectorName + ".txt");
 
    for (int i = 0; i < numberOfYTowers; i++)
    {
@@ -181,17 +184,16 @@ void EMCTiming::ProcessSector(const int sectorBin)
       {
          numberOfCalls++;
 
-         for (int k = 0; k < fitFunc.GetNpar(); k++)
-         {
-            fitFunc.ReleaseParameter(k);
-         }
+         TF1 fitFunc("t vs ADC fit", inputYAMLCal["fit_func"].as<std::string>().c_str());
          fitFunc.SetParameters(100., 50, 0., -1.);
          fitFunc.SetRange(0., 5000.);
 
          distrTVsADCVsZTower->GetZaxis()->SetRange(j + 1, j + 1); // j + 1 to get the bin
 
-         PerformFitsForSingleTower(static_cast<TH2D *>(distrTVsADCVsZTower->Project3D("xy")), 
-                                   fitFunc, sectorName, i, j);
+         if (PerformFitsForSingleTower(static_cast<TH2D *>(distrTVsADCVsZTower->Project3D("xy")), 
+                                       fitFunc, sectorName, i, j))
+         {
+         }
 
          if (!showProgress)
          {
@@ -203,7 +205,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
    }
 }
 
-void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
+bool EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
                                           const int yTowerIndex, const int zTowerIndex)
 {
    if (distr->Integral() < 1e-15) return;
@@ -283,7 +285,7 @@ void EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::
    meanDistr.DrawClone();
    fitFunc.DrawClone("SAME");
 
-   ROOTTools::PrintCanvas(&meanCanv, ("output/EMCTCalibration/" + runName + "/" + sectorName +
+   ROOTTools::PrintCanvas(&meanCanv, ("output/" + runName + "/EMCTCalibration/" + sectorName +
                                       "/mean_iy" + std::to_string(yTowerIndex) + 
                                       "_iz" + std::to_string(zTowerIndex)).c_str());
 }

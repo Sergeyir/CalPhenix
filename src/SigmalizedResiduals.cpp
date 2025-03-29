@@ -125,12 +125,12 @@ int main(int argc, char **argv)
 
       if (argc > 5) showProgress = static_cast<bool>(std::stoi(argv[5]));
 
-      system(("mkdir -p output/SigmalizedResiduals/" + runName + 
-              "/CalibrationParameters").c_str());
+      outputDir = "output/SigmalizedResiduals/" + runName + "/";
+      system(("mkdir -p " + outputDir + "CalibrationParameters").c_str());
 
       inputFile = 
-         std::unique_ptr<TFile>(TFile::Open(("data/" + runName + 
-                                             "/SigmalizedResiduals/sum.root").c_str(), "READ"));
+         std::unique_ptr<TFile>(TFile::Open(("data/SigmalizedResiduals/" + runName + 
+                                             "/sum.root").c_str(), "READ"));
 
       pTRangeTLatex.SetTextFont(52);
       pTRangeTLatex.SetTextSize(0.06);
@@ -173,8 +173,6 @@ int main(int argc, char **argv)
                                     [inputYAMLCal["centrality_bins"].size() - 1]
                                     ["max"].as<double>());
 
-      outputDir = "output/SigmalizedResiduals/" + runName + "/";
-
       pTMin = inputYAMLCal["pt_bins"][0]["min"].as<double>();
       pTMax = inputYAMLCal["pt_bins"][inputYAMLCal["pt_bins"].size() - 1]
                                     ["max"].as<double>();
@@ -199,7 +197,7 @@ void SigmalizedResiduals::PerformFitsForDifferentCentrAndZDC(const unsigned int 
 
    const std::string detectorName = detector["name"].as<std::string>();
 
-   system(("mkdir -p output/SigmalizedResiduals/" + runName + "/" + detectorName).c_str());
+   system(("mkdir -p " + outputDir + detectorName).c_str());
 
    outputFile = std::unique_ptr<TFile>
       (TFile::Open((outputDir + detectorName + "/all_fits_" + variableName[variableBin] + 
@@ -940,13 +938,9 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
 
    if (drawDValDistr)
    {
-      const std::string outputFileNameNoExt = 
-         "output/SigmalizedResiduals/" + runName + "/" + 
-         detector["name"].as<std::string>() + "/" + 
-         variableName[variableBin] + "_" + chargeNameShort + 
-         centralityRangePathName + zDCRangePathName;
-
-      ROOTTools::PrintCanvas(&canvDValVsPT, outputFileNameNoExt, false);
+      ROOTTools::PrintCanvas(&canvDValVsPT, outputDir + detector["name"].as<std::string>() + "/" + 
+                                            variableName[variableBin] + "_" + chargeNameShort + 
+                                            centralityRangePathName + zDCRangePathName, false);
    }
 
    // applying bin shift correction
