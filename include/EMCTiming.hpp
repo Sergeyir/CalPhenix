@@ -21,11 +21,6 @@
 #include "TF1.h"
 #include "TROOT.h"
 #include "TStyle.h"
-#include "TGraphErrors.h"
-#include "TLatex.h"
-#include "TLine.h"
-#include "TLegend.h"
-#include "TMath.h"
 
 #include "IOTools.hpp"
 #include "MathTools.hpp"

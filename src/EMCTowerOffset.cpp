@@ -18,21 +18,19 @@ int main(int argc, char **argv)
 {
    using namespace EMCTiming;
 
-   if (argc < 2 || argc > 5 || (argc > 2 && argc < 3)) 
+   if (argc < 2 || argc > 5) 
    {
-      std::string errMsg = "Expected 1-2 or 2-4 parameters while " + std::to_string(argc - 1) + 
+      std::string errMsg = "Expected 1-2 or 3-4 parameters while " + std::to_string(argc - 1) + 
                            " parameter(s) were provided \n";
       errMsg += "Usage: bin/EMCTowerOffset inputFile numberOfThreads=" + 
                 std::to_string(std::thread::hardware_concurrency()) + "*\n";
-      errMsg += "Or**: bin/EMCTowerOffset inputFile sectorBin ";
-      errMsg += "numberOfThreads=" + std::to_string(std::thread::hardware_concurrency()) + "* " +
-                "showProgress=true";
+      errMsg += "Or**: bin/EMCTowerOffset inputFile sectorBin numberOfThreads showProgress=true";
       errMsg += "*: default argument is the number of threads on the current machine \n";
-      errMsg += "**: this mode analyzes only one configuration";
+      errMsg += "**: this mode processes only one sector \n";
       CppTools::PrintError(errMsg);
    }
 
-   int numberOfThreads;
+   unsigned int numberOfThreads;
 
    // initializing ROOT parameters
    ROOT::EnableThreadSafety();
@@ -46,7 +44,7 @@ int main(int argc, char **argv)
 
    runName = inputYAMLCal["run_name"].as<std::string>();
 
-   CheckInputFile("data/EMCTiming/" + runName + "/sum.root");
+   CppTools::CheckInputFile("data/EMCTiming/" + runName + "/sum.root");
 
    // opening input file with parameters of a run
    inputYAMLMain.OpenFile("input/" + runName + "/main.yaml");
@@ -61,54 +59,52 @@ int main(int argc, char **argv)
 
    TDirectory::AddDirectory(kFALSE);
 
-   /*
-   if (argc < 4) // Mode1
+   if (argc < 3) // Mode1
    {
       programMode = 1;
       if (argc > 2) numberOfThreads = std::stoi(argv[2]);
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
-      system("rm -rf tmp/EMCTowerOffset*//*");
       system(("mkdir -p tmp/EMCTowerOffset/" + runName).c_str());
+      system(("rm -rf tmp/EMCTowerOffset/" + runName + "/*").c_str());
 
-      numberOfIterations = inputYAMLCal["detectors_to_calibrate"].size()*
-                                inputYAMLCal["centrality_bins"].size()*
-                                inputYAMLCal["zdc_bins"].size()*4;
+      numberOfIterations = 0;
+      for (unsigned int sectorBin = 0; sectorBin < 
+           inputYAMLCal["sectors_to_calibrate"].size(); sectorBin++)
+      {
+         numberOfIterations +=
+            inputYAMLCal["sectors_to_calibrate"][sectorBin]["number_of_y_towers"].as<int>()*
+            inputYAMLCal["sectors_to_calibrate"][sectorBin]["number_of_z_towers"].as<int>();
+      }
 
-      auto SingleThreadCall = [&](const unsigned long detectorBin, 
-                                  const unsigned long variableBin)
+      int subprocessNumberOfThreads = numberOfThreads/inputYAMLCal["sectors_to_calibrate"].size();
+      if (subprocessNumberOfThreads < 1) subprocessNumberOfThreads = 1;
+
+      auto SingleThreadCall = [&](const unsigned long sectorBin)
       {
          // man ROOT sucks (TF1::Fit is still not thread safe) so I have to call the same program 
          // recursively in shell outside of the current instance to implement multithreading
-         system((static_cast<std::string>("./bin/SigmalizedResiduals ") + 
-                 argv[1] + " " + std::to_string(detectorBin) + " " + 
-                 std::to_string(variableBin) + " 1 0").c_str());;
+         system((static_cast<std::string>("./bin/EMCTowerOffset ") + 
+                 argv[1] + " " + std::to_string(sectorBin) + " " + 
+                 std::to_string(subprocessNumberOfThreads) + " 0").c_str());;
       };
 
       std::vector<std::thread> thrCalls;
       std::thread pBarThr(PBarCall); 
 
-      for (const YAML::Node& sector : inputYAMLCal["sectors_to_calibrate"])
+      for (unsigned int sectorBin = 0; sectorBin < 
+           inputYAMLCal["sectors_to_calibrate"].size(); sectorBin++)
       {
-         ProcessSector(sector);
-         break;
-      }
-      for (unsigned int detectorBin = 0; detectorBin < 
-           inputYAMLCal["detectors_to_calibrate"].size(); detectorBin++)
-      {
-         for (unsigned long variableBin = 0; variableBin < variableName.size(); variableBin++)
-         { 
-               if (thrCalls.size() >= numberOfThreads)
+            if (thrCalls.size() >= numberOfThreads)
+            {
+               while (!thrCalls.empty())
                {
-                  while (!thrCalls.empty())
-                  {
-                     thrCalls.back().join();
-                     thrCalls.pop_back();
-                  }
+                  thrCalls.back().join();
+                  thrCalls.pop_back();
                }
-               thrCalls.emplace_back(SingleThreadCall, detectorBin, variableBin);
             }
+            thrCalls.emplace_back(SingleThreadCall, sectorBin);
       }
 
       while (!thrCalls.empty())
@@ -121,11 +117,9 @@ int main(int argc, char **argv)
       pBarThr.join();
    }
    else // Mode2
-   */
    {
       programMode = 2;
-      if (argc > 3) numberOfThreads = std::stoi(argv[3]);
-      else numberOfThreads = std::thread::hardware_concurrency();
+      numberOfThreads = std::stoi(argv[3]);
       if (numberOfThreads <= 0) CppTools::PrintError("Number of threads must be bigger than 0");
  
       ROOT::EnableImplicitMT(numberOfThreads);
@@ -133,11 +127,9 @@ int main(int argc, char **argv)
       if (argc > 4) showProgress = static_cast<bool>(std::stoi(argv[4]));
 
       outputDir = "output/EMCTCalibration/" + runName + "/";
-      system((outputDir + "CalibrationParameters").c_str());
-
-      system(("mkdir -p output/" + runName + "/EMCTCalibration/" + 
-              inputYAMLCal["sectors_to_calibrate"][std::stoi(argv[2])]
-                          ["name"].as<std::string>()).c_str());
+      system(("mkdir -p " + outputDir + "CalibrationParameters").c_str());
+      system(("mkdir -p " + outputDir + inputYAMLCal["sectors_to_calibrate"][std::stoi(argv[2])]
+                                                    ["name"].as<std::string>()).c_str());
 
       fitNTries = inputYAMLCal["number_of_fit_tries"].as<unsigned int>();
       fitADCMin = inputYAMLCal["fit_adc_min"].as<double>();
@@ -166,7 +158,8 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
    TFile inputFile(("data/EMCTiming/" + runName + "/sum.root").c_str());
 
-   std::ofstream parametersOutput("output/" + runName + "/EMCTCalibration/CalibrationParameters/tower_offset_" + sectorName + ".txt");
+   std::ofstream 
+      parametersOutput(outputDir + "CalibrationParameters/tower_offset_" + sectorName + ".txt");
 
    for (int i = 0; i < numberOfYTowers; i++)
    {
@@ -185,14 +178,23 @@ void EMCTiming::ProcessSector(const int sectorBin)
          numberOfCalls++;
 
          TF1 fitFunc("t vs ADC fit", inputYAMLCal["fit_func"].as<std::string>().c_str());
-         fitFunc.SetParameters(100., 50, 0., -1.);
-         fitFunc.SetRange(0., 5000.);
 
          distrTVsADCVsZTower->GetZaxis()->SetRange(j + 1, j + 1); // j + 1 to get the bin
 
          if (PerformFitsForSingleTower(static_cast<TH2D *>(distrTVsADCVsZTower->Project3D("xy")), 
                                        fitFunc, sectorName, i, j))
          {
+            parametersOutput << 1 << " ";
+            for (int k = 0; k < fitFunc.GetNpar() - 1; k++)
+            {
+               parametersOutput << fitFunc.GetParameter(k) << " ";
+            }
+            parametersOutput << fitFunc.GetParameter(fitFunc.GetNpar() - 1);
+            parametersOutput << std::endl;
+         }
+         else
+         {
+            parametersOutput << 0 << std::endl;
          }
 
          if (!showProgress)
@@ -203,12 +205,15 @@ void EMCTiming::ProcessSector(const int sectorBin)
          }
       }
    }
+
+   parametersOutput.close();
 }
 
 bool EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::string& sectorName,
                                           const int yTowerIndex, const int zTowerIndex)
 {
-   if (distr->Integral() < 1e-15) return;
+   if (distr->Integral(distr->GetXaxis()->FindBin(fitADCMin), distr->GetXaxis()->GetNbins(),
+                       1, distr->GetYaxis()->GetNbins()) < 1e-15) return false;
 
    // distribution of means of Y projections 
    TH1D meanDistr(("mean distribution of iy" + std::to_string(yTowerIndex) + 
@@ -221,21 +226,15 @@ bool EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::
    double minT = 1e31;
    double maxT = -1e31;
 
-   int minADCBin = 9999;
-   int maxADCBin = -9999;
-
    for (int i = distr->GetXaxis()->FindBin(fitADCMin); i <= distr->GetXaxis()->GetNbins(); i++)
    {
       TH1D *distrProj = distr->
          ProjectionY(((std::string) distr->GetName() + "_px_" + std::to_string(i)).c_str(), i, i);
 
-      if (distrProj->Integral() < 1e-15) continue;
+      if (distrProj->Integral(1, distrProj->GetXaxis()->GetNbins()) < 1e-15) continue;
 
       meanDistr.SetBinContent(i, distrProj->GetMean());
       meanDistr.SetBinError(i, distrProj->GetMeanError());
-
-      minADCBin = CppTools::Minimum(minADCBin, i);
-      maxADCBin = CppTools::Maximum(maxADCBin, i);
 
       for (int j = 1; j <= distrProj->GetXaxis()->GetNbins(); j++)
       {
@@ -254,24 +253,33 @@ bool EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::
       }
    }
 
-   fitFunc.SetParameter(0, minT);
-   fitFunc.SetRange(distr->GetXaxis()->GetBinLowEdge(minADCBin)/1.5, 
-                    distr->GetXaxis()->GetBinUpEdge(maxADCBin)*1.5);
+   fitFunc.SetRange(meanDistr.GetXaxis()->GetBinLowEdge(1), 
+                    meanDistr.GetXaxis()->GetBinUpEdge(meanDistr.GetXaxis()->GetNbins()));
 
    meanDistr.SetMinimum(minT - 5.);
    meanDistr.SetMaximum(maxT + 5.);
 
-   distr->GetYaxis()->SetRange(distr->GetYaxis()->FindBin(minT - 5.), 
-                               distr->GetYaxis()->FindBin(maxT + 5.));
-
-   for (unsigned int i = 1; i <= fitNTries; i++)
+   // ROOT can't fit 1 point data
+   if (static_cast<int>(meanDistr.GetEntries()) < 2)
    {
-      meanDistr.Fit(&fitFunc, "RQMBN");
+      fitFunc.SetParameters(minT, 0., 0.);
+   }
+   else
+   {
+      fitFunc.SetParameters(minT, 50, -1.);
 
-      for (int j = 0; j < fitFunc.GetNpar(); j++)
+      distr->GetYaxis()->SetRange(distr->GetYaxis()->FindBin(minT - 5.), 
+                                  distr->GetYaxis()->FindBin(maxT + 5.));
+
+      for (unsigned int i = 1; i <= fitNTries; i++)
       {
-         fitFunc.SetParLimits(j, fitFunc.GetParameter(j)/(1. + 2./static_cast<double>(i*i)), 
-                              fitFunc.GetParameter(j)*(1. + 2./static_cast<double>(i*i)));
+         meanDistr.Fit(&fitFunc, "RQMBN");
+
+         for (int j = 0; j < fitFunc.GetNpar(); j++)
+         {
+            fitFunc.SetParLimits(j, fitFunc.GetParameter(j)/(1. + 2./static_cast<double>(i*i)), 
+                                 fitFunc.GetParameter(j)*(1. + 2./static_cast<double>(i*i)));
+         }
       }
    }
 
@@ -279,15 +287,16 @@ bool EMCTiming::PerformFitsForSingleTower(TH2D *distr, TF1& fitFunc, const std::
    meanCanv.Divide(2);
 
    meanCanv.cd(1);
-   distr->DrawClone();
+   distr->DrawClone("COLZ");
 
    meanCanv.cd(2);
    meanDistr.DrawClone();
    fitFunc.DrawClone("SAME");
 
-   ROOTTools::PrintCanvas(&meanCanv, ("output/" + runName + "/EMCTCalibration/" + sectorName +
-                                      "/mean_iy" + std::to_string(yTowerIndex) + 
-                                      "_iz" + std::to_string(zTowerIndex)).c_str());
+   ROOTTools::PrintCanvas(&meanCanv, outputDir + sectorName + "/mean_iy" + 
+                                     std::to_string(yTowerIndex) + "_iz" + 
+                                     std::to_string(zTowerIndex));
+   return true;
 }
 
 void EMCTiming::PBarCall()
