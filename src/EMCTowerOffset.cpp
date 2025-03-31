@@ -161,6 +161,8 @@ void EMCTiming::ProcessSector(const int sectorBin)
    std::ofstream 
       parametersOutput(outputDir + "CalibrationParameters/tower_offset_" + sectorName + ".txt");
 
+   parametersOutput << numberOfYTowers << " " << numberOfZTowers << std::endl;
+
    for (int i = 0; i < numberOfYTowers; i++)
    {
       TH3D *distrTVsADCVsZTower = static_cast<TH3D *>
