@@ -1,6 +1,6 @@
 /** 
  *  @file   EMCTowerOffset.cpp
- *  @brief  Contains declarations of functions and variables that are used for tower offset estimation from the sum of all runs
+ *  @brief  Contains realisations of functions and variables that are used for tower offset estimation from the sum of all runs
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
    runName = inputYAMLCal["run_name"].as<std::string>();
 
-   CppTools::CheckInputFile("data/EMCTiming/" + runName + "/sum.root");
+   CppTools::CheckInputFile("data/EMCTiming/" + runName + "/raw_sum.root");
 
    // opening input file with parameters of a run
    inputYAMLMain.OpenFile("input/" + runName + "/main.yaml");
@@ -156,10 +156,9 @@ void EMCTiming::ProcessSector(const int sectorBin)
    const int numberOfYTowers = sector["number_of_y_towers"].as<int>();
    const int numberOfZTowers = sector["number_of_z_towers"].as<int>();
 
-   TFile inputFile(("data/EMCTiming/" + runName + "/sum.root").c_str());
+   TFile inputFile(("data/EMCTiming/" + runName + "/raw_sum.root").c_str());
 
-   std::ofstream 
-      parametersOutput(outputDir + "CalibrationParameters/tower_offset_" + sectorName + ".txt");
+   parametersOutput.open(outputDir + "CalibrationParameters/tower_offset_" + sectorName + ".txt");
 
    parametersOutput << numberOfYTowers << " " << numberOfZTowers << std::endl;
 
@@ -179,7 +178,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
       {
          numberOfCalls++;
 
-         TF1 fitFunc("t vs ADC fit", inputYAMLCal["fit_func"].as<std::string>().c_str());
+         TF1 fitFunc("t vs ADC fit", inputYAMLCal["traw_fit_func"].as<std::string>().c_str());
 
          distrTVsADCVsZTower->GetZaxis()->SetRange(j + 1, j + 1); // j + 1 to get the bin
 

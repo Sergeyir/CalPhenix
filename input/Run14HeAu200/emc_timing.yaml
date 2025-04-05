@@ -1,7 +1,8 @@
 # This file contains all important information about EMCal timing calibration
 status: emc_timing
 run_name: Run14HeAu200
-fit_func: "[0] + [1]/(x^[2])"
+traw_fit_func: "[0] + [1]/(x^[2])" # fit function for approximating 2D traw vs ADC distributions
+tcorr_fit_func: "gaus(0) + pol1(2)" # fit function for approximating 1D tcorr distributions
 number_of_fit_tries: 5 # number of consecutive approximations; used to improve ROOT algorithm; recommended value: 5
 fit_adc_min: 200. # minimum ADC for the range of the fit
 sectors_to_calibrate:
@@ -9,31 +10,53 @@ sectors_to_calibrate:
     name: EMCale0
     number_of_y_towers: 48
     number_of_z_towers: 97
+    adc_ranges: # ranges along adc at which signal of photons dominates the background around it
+    - {min: 240., max: 2500.}
   - 
     name: EMCale1
     number_of_y_towers: 48
     number_of_z_towers: 97
+    adc_ranges:
+    - {min: 80., max: 160.}
+    - {min: 220., max: 280.}
+    - {min: 600., max: 940.}
+    - {min: 1100., max: 1380.}
+    - {min: 2640., max: 3300.}
   - 
     name: EMCale2
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 0., max: 10000.}
   - 
     name: EMCale3
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 0., max: 460.}
+    - {min: 600., max: 10000.}
   - 
     name: EMCalw0
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 0., max: 10000.}
   - 
     name: EMCalw1
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 0., max: 10000.}
   - 
     name: EMCalw2
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 420., max: 440.}
+    - {min: 740., max: 10000.}
   - 
     name: EMCalw3
     number_of_y_towers: 36
     number_of_z_towers: 72
+    adc_ranges:
+    - {min: 480., max: 10000.}

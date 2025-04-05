@@ -21,6 +21,7 @@
 #include "TF1.h"
 #include "TROOT.h"
 #include "TStyle.h"
+#include "TGraphErrors.h"
 
 #include "IOTools.hpp"
 #include "MathTools.hpp"
@@ -63,6 +64,10 @@ namespace EMCTiming
    std::string runName;
    /// Output directory
    std::string outputDir;
+   /// file in which parameters for calibration will be written
+   std::ofstream parametersOutput;
+   /// contains all run numbers for run by run correction
+   std::vector<int> runNumbers;
    /// pProgress bar - shows progress (see ProgressBar)
    ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
    /// Value that shows whether the computation part of this program is finished; the other part joins the threads and finishes the program

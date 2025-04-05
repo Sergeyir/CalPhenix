@@ -177,6 +177,19 @@ EMCTowerOffset/fast:
 .PHONY : EMCTowerOffset/fast
 
 #=============================================================================
+# Target rules for targets named EMCRunByRunOffset
+
+# Build rule for target.
+EMCRunByRunOffset: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 EMCRunByRunOffset
+.PHONY : EMCRunByRunOffset
+
+# fast build rule for target.
+EMCRunByRunOffset/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/EMCRunByRunOffset.dir/build.make CMakeFiles/EMCRunByRunOffset.dir/build
+.PHONY : EMCRunByRunOffset/fast
+
+#=============================================================================
 # Target rules for targets named Experimental
 
 # Build rule for target.
@@ -759,6 +772,30 @@ src/CheckSigmalizedResiduals.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/CheckSigmalizedResiduals.dir/build.make CMakeFiles/CheckSigmalizedResiduals.dir/src/CheckSigmalizedResiduals.cpp.s
 .PHONY : src/CheckSigmalizedResiduals.cpp.s
 
+src/EMCRunByRunOffset.o: src/EMCRunByRunOffset.cpp.o
+.PHONY : src/EMCRunByRunOffset.o
+
+# target to build an object file
+src/EMCRunByRunOffset.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/EMCRunByRunOffset.dir/build.make CMakeFiles/EMCRunByRunOffset.dir/src/EMCRunByRunOffset.cpp.o
+.PHONY : src/EMCRunByRunOffset.cpp.o
+
+src/EMCRunByRunOffset.i: src/EMCRunByRunOffset.cpp.i
+.PHONY : src/EMCRunByRunOffset.i
+
+# target to preprocess a source file
+src/EMCRunByRunOffset.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/EMCRunByRunOffset.dir/build.make CMakeFiles/EMCRunByRunOffset.dir/src/EMCRunByRunOffset.cpp.i
+.PHONY : src/EMCRunByRunOffset.cpp.i
+
+src/EMCRunByRunOffset.s: src/EMCRunByRunOffset.cpp.s
+.PHONY : src/EMCRunByRunOffset.s
+
+# target to generate assembly for a file
+src/EMCRunByRunOffset.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/EMCRunByRunOffset.dir/build.make CMakeFiles/EMCRunByRunOffset.dir/src/EMCRunByRunOffset.cpp.s
+.PHONY : src/EMCRunByRunOffset.cpp.s
+
 src/EMCTowerOffset.o: src/EMCTowerOffset.cpp.o
 .PHONY : src/EMCTowerOffset.o
 
@@ -870,6 +907,7 @@ help:
 	@echo "... NightlyUpdate"
 	@echo "... Box"
 	@echo "... CheckSigmalizedResiduals"
+	@echo "... EMCRunByRunOffset"
 	@echo "... EMCTowerOffset"
 	@echo "... ErrorHandler"
 	@echo "... GUIDistrCutter2D"
@@ -890,6 +928,9 @@ help:
 	@echo "... src/CheckSigmalizedResiduals.o"
 	@echo "... src/CheckSigmalizedResiduals.i"
 	@echo "... src/CheckSigmalizedResiduals.s"
+	@echo "... src/EMCRunByRunOffset.o"
+	@echo "... src/EMCRunByRunOffset.i"
+	@echo "... src/EMCRunByRunOffset.s"
 	@echo "... src/EMCTowerOffset.o"
 	@echo "... src/EMCTowerOffset.i"
 	@echo "... src/EMCTowerOffset.s"
