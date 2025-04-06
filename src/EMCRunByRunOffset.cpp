@@ -160,7 +160,10 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
    parametersOutput << runNumbers.size() << std::endl;
 
-   const std::string tCorrFitFunc = inputYAMLCal["tcorr_fit_func"].as<std::string>();
+   const std::string tCorrFitFunc = 
+      inputYAMLCal["tcorr_fit_func"].as<std::string>();
+   const std::string tCorrMeanVsADCFitFunc = 
+      inputYAMLCal["tcorr_mean_vs_adc_fit_func"].as<std::string>();
 
    for (const int runNumber : runNumbers)
    {
@@ -215,18 +218,20 @@ void EMCTiming::ProcessSector(const int sectorBin)
                const double parameterDeviationScale = 1. + 1./static_cast<double>(j*j);
 
                tCorrFit.SetRange(tCorrFit.GetParameter(1) - 
-                                 tCorrFit.GetParameter(2)*parameterDeviationScale,
+                                 fabs(tCorrFit.GetParameter(2))*parameterDeviationScale,
                                  tCorrFit.GetParameter(1) - 
-                                 tCorrFit.GetParameter(2)*parameterDeviationScale);
+                                 fabs(tCorrFit.GetParameter(2))*parameterDeviationScale);
 
                for (int k = 0; k < tCorrFit.GetNpar(); k++)
                {
                   if (k == 1)
                   {
                      tCorrFit.SetParLimits(k, tCorrFit.GetParameter(k) - 
-                                           tCorrFit.GetParameter(2)*(parameterDeviationScale - 1.),
+                                           fabs(tCorrFit.GetParameter(2))*
+                                           (parameterDeviationScale - 1.),
                                            tCorrFit.GetParameter(k) +
-                                           tCorrFit.GetParameter(2)*(parameterDeviationScale - 1.));
+                                           fabs(tCorrFit.GetParameter(2))*
+                                           (parameterDeviationScale - 1.));
                   }
                   else
                   {
@@ -246,7 +251,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
                                  tVsADC->GetXaxis()->GetBinCenter(firstValidBinInRange));
 
             meansTVsADC.AddPoint(valADC, tCorrFit.GetParameter(1));
-            sigmasTVsADC.AddPoint(valADC, tCorrFit.GetParameter(2));
+            sigmasTVsADC.AddPoint(valADC, fabs(tCorrFit.GetParameter(2)));
          }
       }
 
@@ -257,6 +262,12 @@ void EMCTiming::ProcessSector(const int sectorBin)
       sigmasTVsADC.SetMarkerStyle(20);
       sigmasTVsADC.SetMarkerColor(kAzure - 3);
       sigmasTVsADC.SetMarkerSize(0.5);
+
+      TF1 tCorrMeanVsADCFit("tcorr mean vs ADC fit", tCorrMeanVsADCFitFunc.c_str(), 0., 10000);
+      tCorrMeanVsADCFit.SetLineWidth(3);
+      tCorrMeanVsADCFit.SetLineStyle(2);
+      tCorrMeanVsADCFit.SetLineColor(kBlack);
+      meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
 
       TCanvas parCanv("mean and sigma t parameters vs ADC", "", 600, 600);
 
@@ -273,6 +284,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
       frame->GetXaxis()->SetTitle("ADC");
 
+      tCorrMeanVsADCFit.Draw("SAME");
       meansTVsADC.Draw("P");
       sigmasTVsADC.Draw("P");
 

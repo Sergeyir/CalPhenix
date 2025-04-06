@@ -178,7 +178,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
       {
          numberOfCalls++;
 
-         TF1 fitFunc("t vs ADC fit", inputYAMLCal["traw_fit_func"].as<std::string>().c_str());
+         TF1 fitFunc("t vs ADC fit", inputYAMLCal["traw_vs_adc_fit_func"].as<std::string>().c_str());
 
          distrTVsADCVsZTower->GetZaxis()->SetRange(j + 1, j + 1); // j + 1 to get the bin
 
