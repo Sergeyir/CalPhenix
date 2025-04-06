@@ -34,8 +34,7 @@ sectors_to_calibrate:
     number_of_y_towers: 36
     number_of_z_towers: 72
     adc_ranges:
-    - {min: 0., max: 460.}
-    - {min: 600., max: 10000.}
+    - {min: 500., max: 10000.}
   - 
     name: EMCalw0
     number_of_y_towers: 36
@@ -53,11 +52,10 @@ sectors_to_calibrate:
     number_of_y_towers: 36
     number_of_z_towers: 72
     adc_ranges:
-    - {min: 420., max: 440.}
-    - {min: 740., max: 10000.}
+    - {min: 800., max: 10000.}
   - 
     name: EMCalw3
     number_of_y_towers: 36
     number_of_z_towers: 72
     adc_ranges:
-    - {min: 480., max: 10000.}
+    - {min: 700., max: 10000.}

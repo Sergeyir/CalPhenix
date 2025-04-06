@@ -77,8 +77,8 @@ int main(int argc, char **argv)
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
-      system(("mkdir -p tmp/EMCTowerOffset/" + runName).c_str());
-      system(("rm -rf tmp/EMCTowerOffset/" + runName + "/*").c_str());
+      system(("mkdir -p tmp/EMCRunByRunOffset/" + runName).c_str());
+      system(("rm -rf tmp/EMCRunByRunOffset/" + runName + "/*").c_str());
 
       numberOfIterations = inputYAMLCal["sectors_to_calibrate"].size()*runNumbers.size();
 
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
       {
          // man ROOT sucks (TF1::Fit is still not thread safe) so I have to call the same program 
          // recursively in shell outside of the current instance to implement multithreading
-         system((static_cast<std::string>("./bin/EMCTowerOffset ") + 
+         system((static_cast<std::string>("./bin/EMCRunByRunOffset ") + 
                  argv[1] + " " + std::to_string(sectorBin) + " " + 
                  std::to_string(subprocessNumberOfThreads) + " 0").c_str());;
       };
@@ -165,6 +165,8 @@ void EMCTiming::ProcessSector(const int sectorBin)
    const std::string tCorrMeanVsADCFitFunc = 
       inputYAMLCal["tcorr_mean_vs_adc_fit_func"].as<std::string>();
 
+   TFile outputFile((outputDir + sectorName + "/tcorr_fits.root").c_str(), "RECREATE");
+
    for (const int runNumber : runNumbers)
    {
       numberOfCalls++;
@@ -179,7 +181,11 @@ void EMCTiming::ProcessSector(const int sectorBin)
       if (tVsADC->Integral() < 1000.) // bad run
       {
          parametersOutput << 0 << std::endl;
+         continue;
       }
+
+      outputFile.mkdir(std::to_string(runNumber).c_str());
+      outputFile.cd(std::to_string(runNumber).c_str());
 
       TGraphErrors meansTVsADC;
       TGraphErrors sigmasTVsADC;
@@ -199,22 +205,30 @@ void EMCTiming::ProcessSector(const int sectorBin)
          {
             if (tVsADC->Integral(firstValidBinInRange, i, tVsADC->GetYaxis()->FindBin(-10.), 
                                  tVsADC->GetYaxis()->FindBin(10.)) < 1000.) continue;
+
+            // ADC value of the (current bin)/(merged bins)
+            const double valADC = 
+               CppTools::Average(tVsADC->GetXaxis()->GetBinCenter(i), 
+                                 tVsADC->GetXaxis()->GetBinCenter(firstValidBinInRange));
+
             TH1D *tVsADCProj = 
-               tVsADC->ProjectionY((tVsADC->GetName() + std::to_string(i)).c_str(), 
+               tVsADC->ProjectionY(("tcorr " + CppTools::DtoStr(valADC, 0)).c_str(), 
                                    firstValidBinInRange, i);
 
             // if statistics is sufficient first valid bin resets 
             // to the current bin on next iteration bin
             firstValidBinInRange = i + 1;
 
-            TF1 tCorrFit("t corr fit", tCorrFitFunc.c_str());
+            TF1 tCorrFit(("tcorr fit " + CppTools::DtoStr(valADC, 0)).c_str(), tCorrFitFunc.c_str());
 
             tCorrFit.SetRange(-10., 10.);
             tCorrFit.SetParameters(tVsADCProj->GetMaximum(), 0, 0.5, 1., 1.);
 
             for (unsigned int j = 1; j <= fitNTries; j++)
             {
-               tVsADCProj->Fit(&tCorrFit, "RQMBN");
+               if (j < fitNTries) tVsADCProj->Fit(&tCorrFit, "RQMBN");
+               else tVsADCProj->Fit(&tCorrFit, "RQMB");
+
                const double parameterDeviationScale = 1. + 1./static_cast<double>(j*j);
 
                tCorrFit.SetRange(tCorrFit.GetParameter(1) - 
@@ -241,14 +255,12 @@ void EMCTiming::ProcessSector(const int sectorBin)
                }
             }
 
-            // skipping outliers
-            if (fabs(tCorrFit.GetParameter(1)) > 10. || 
-                fabs(tCorrFit.GetParameter(2)) > 5.) continue;
+            tVsADCProj->Write();
 
-            // ADC value of the (current bin)/(merged bins)
-            const double valADC = 
-               CppTools::Average(tVsADC->GetXaxis()->GetBinCenter(i), 
-                                 tVsADC->GetXaxis()->GetBinCenter(firstValidBinInRange));
+            // skipping outliers
+            if (fabs(tCorrFit.GetParameter(1)) > 5. || 
+                fabs(tCorrFit.GetParameter(2)) > 3. || 
+                fabs(tCorrFit.GetParameter(2)) < 0.1) continue;
 
             meansTVsADC.AddPoint(valADC, tCorrFit.GetParameter(1));
             sigmasTVsADC.AddPoint(valADC, fabs(tCorrFit.GetParameter(2)));
@@ -267,7 +279,24 @@ void EMCTiming::ProcessSector(const int sectorBin)
       tCorrMeanVsADCFit.SetLineWidth(3);
       tCorrMeanVsADCFit.SetLineStyle(2);
       tCorrMeanVsADCFit.SetLineColor(kBlack);
-      meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
+
+      if (meansTVsADC.GetN() == 0) // bad run that passed the first bad run check
+      {
+         parametersOutput << 0 << std::endl;
+         continue;
+      }
+      else if (meansTVsADC.GetN() > 1) 
+      {
+         meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
+      }
+      else // root can't fit 1 point data
+      {
+         tCorrMeanVsADCFit.SetParameter(0, meansTVsADC.GetPointY(0));
+         for (int i = 1; i < tCorrMeanVsADCFit.GetNpar(); i++)
+         {
+            tCorrMeanVsADCFit.SetParameter(i, 0.);
+         }
+      }
 
       TCanvas parCanv("mean and sigma t parameters vs ADC", "", 600, 600);
 
@@ -291,8 +320,17 @@ void EMCTiming::ProcessSector(const int sectorBin)
       ROOTTools::PrintCanvas(&parCanv, "output/EMCTCalibration/" + runName + "/" + 
                              sectorName + "/tcorr_par_vs_adc_" + std::to_string(runNumber));
 
-      frame->GetXaxis()->SetTitle("ADC");
+      
+      parametersOutput << 1 << " ";
 
+      for (int i = 0; i < tCorrMeanVsADCFit.GetNpar() - 1; i++)
+      {
+         parametersOutput << tCorrMeanVsADCFit.GetParameter(i) << " ";
+      }
+      parametersOutput << 
+         tCorrMeanVsADCFit.GetParameter(tCorrMeanVsADCFit.GetNpar() - 1) << std::endl;
+
+      frame->GetXaxis()->SetTitle("ADC");
 
       if (!showProgress)
       {
@@ -301,6 +339,8 @@ void EMCTiming::ProcessSector(const int sectorBin)
          progressFile << numberOfCalls;
       }
    }
+
+   outputFile.Close();
 
    parametersOutput.close();
 }
