@@ -2,8 +2,6 @@
  *  @file   InputYAMLReader.cpp 
  *  @brief  Contains declaration of class InputYAMLReader
  *
- *  In order to use InputYAMLReader class libraries libInputReader.so, libErrorHandler.so must be loaded
- *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
  *  @author Sergei Antsupov (antsupov0124@gmail.com)
