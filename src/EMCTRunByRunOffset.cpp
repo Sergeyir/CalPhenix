@@ -174,7 +174,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
       TFile inputFile(("data/EMCTiming/" + runName + "/se-" + 
                        std::to_string(runNumber) + ".root").c_str());
 
-      TH2D *tVsADC = static_cast<TH2D *>(inputFile.Get(("traw vs ADC: " + sectorName).c_str()));
+      TH2D *tVsADC = static_cast<TH2D *>(inputFile.Get(("tcorr vs ADC: " + sectorName).c_str()));
 
       parametersOutput << runNumber << " ";
 
@@ -287,7 +287,18 @@ void EMCTiming::ProcessSector(const int sectorBin)
       }
       else if (meansTVsADC.GetN() > 1) 
       {
-         meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
+         for (unsigned int i = 1; i < fitNTries; i++)
+         {
+            meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
+
+            for (int j = 0; j < tCorrMeanVsADCFit.GetNpar(); j++)
+            {
+               tCorrMeanVsADCFit.SetParLimits(j, tCorrMeanVsADCFit.GetParameter(j)*
+                                              (1. - 6./static_cast<double>(i*i*i)), 
+                                              tCorrMeanVsADCFit.GetParameter(j)*
+                                              (1. + 4./static_cast<double>(i*i*i)));
+            }
+         }
       }
       else // root can't fit 1 point data
       {

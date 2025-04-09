@@ -3,7 +3,7 @@ status: emc_timing
 run_name: Run14HeAu200
 traw_vs_adc_fit_func: "[0] + [1]/(x^[2])" # fit function for approximating 2D traw vs ADC distributions
 tcorr_fit_func: "gaus(0) + pol1(2)" # fit function for approximating 1D tcorr distributions
-tcorr_mean_vs_adc_fit_func: "[0] + [1]/(x^[2]) + [3]*x + [4]*x*x" # fit function for approximating 2D tcorr mean vs ADC disributions
+tcorr_mean_vs_adc_fit_func: "(x < 900.)*([0] + [1]*x + [2]*sqrt(x)) + (x > 1200.)*([3] + [4]*x + [5]*sqrt(x)) + (x > 900. && x < 1200.)*(([0] + [1]*x + [2]*sqrt(x))*(1200.-x)/300. + ([3] + [4]*x + [5]*sqrt(x))*(x-900.)/300.)" # fit function for approximating 2D tcorr mean vs ADC disributions
 number_of_fit_tries: 5 # number of consecutive approximations; used to improve ROOT algorithm; recommended value: 5
 fit_adc_min: 200. # minimum ADC for the range of the fit
 sectors_to_calibrate:
@@ -11,8 +11,8 @@ sectors_to_calibrate:
     name: EMCale0
     number_of_y_towers: 48
     number_of_z_towers: 97
-    adc_ranges: # ranges along adc at which signal of photons dominates the background around it
-    - {min: 260., max: 920.}
+    adc_ranges: # ranges along adc at which signal of photons dominates the background around it across every run
+    - {min: 400., max: 920.}
     - {min: 1180., max: 2040.}
   - 
     name: EMCale1
@@ -23,6 +23,7 @@ sectors_to_calibrate:
     - {min: 1100., max: 1400.}
     - {min: 1540., max: 1800.}
     - {min: 2800., max: 3700.}
+    - {min: 4000., max: 10000.}
   - 
     name: EMCale2
     number_of_y_towers: 36
@@ -34,7 +35,8 @@ sectors_to_calibrate:
     number_of_y_towers: 36
     number_of_z_towers: 72
     adc_ranges:
-    - {min: 500., max: 10000.}
+    - {min: 520, max: 600}
+    - {min: 620, max: 10000}
   - 
     name: EMCalw0
     number_of_y_towers: 36
