@@ -1,5 +1,5 @@
 /** 
- *  @file   EMCTTiming.hpp
+ *  @file   EMCTiming.hpp
  *  @brief  Contains declarations of functions and variables that are used for estimation for timing calibration parameters for EMCal
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
@@ -13,6 +13,7 @@
 #include <thread>
 #include <algorithm>
 #include <filesystem>
+#include <set>
 
 #include "TFile.h"
 #include "TH1.h"

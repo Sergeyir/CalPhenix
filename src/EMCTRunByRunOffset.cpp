@@ -1,13 +1,13 @@
 /** 
- *  @file   EMCRunByRunOffset.cpp
+ *  @file   EMCTRunByRunOffset.cpp
  *  @brief  Contains realistations of functions and variables that are used for sector offset estimation for each run
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
  *  @author Sergei Antsupov (antsupov0124@gmail.com)
  **/
-#ifndef EMC_RUN_BY_RUN_OFFSET_CPP
-#define EMC_RUN_BY_RUN_OFFSET_CPP
+#ifndef EMCT_RUN_BY_RUN_OFFSET_CPP
+#define EMCT_RUN_BY_RUN_OFFSET_CPP
 
 #include "../include/EMCTiming.hpp"
 
@@ -22,9 +22,9 @@ int main(int argc, char **argv)
    {
       std::string errMsg = "Expected 1-2 or 3-4 parameters while " + std::to_string(argc - 1) + 
                            " parameter(s) were provided \n";
-      errMsg += "Usage: bin/EMCTowerOffset inputFile numberOfThreads=" + 
+      errMsg += "Usage: bin/EMCTRunByRunOffset inputFile numberOfThreads=" + 
                 std::to_string(std::thread::hardware_concurrency()) + "*\n";
-      errMsg += "Or**: bin/EMCTowerOffset inputFile sectorBin numberOfThreads showProgress=true";
+      errMsg += "Or**: bin/EMCTRunByRunOffset inputFile sectorBin numberOfThreads showProgress=true";
       errMsg += "*: default argument is the number of threads on the current machine \n";
       errMsg += "**: this mode processes only one sector \n";
       CppTools::PrintError(errMsg);
@@ -61,13 +61,22 @@ int main(int argc, char **argv)
 
    const std::string inputDir = "data/EMCTiming/" + runName + "/";
 
+   std::set<std::filesystem::path> inputDataFilePaths;
+
    for (const auto &file : std::filesystem::directory_iterator(inputDir))
    {
       const std::string fileName = static_cast<std::string>(file.path());
       if (fileName.substr(inputDir.size(), 3) == static_cast<std::string>("se-"))
       {
-         runNumbers.emplace_back(std::stoi(fileName.substr(inputDir.size() + 3, 6)));
+         inputDataFilePaths.insert(file);
       }
+   }
+
+   // iterating over set inputDataFiles to get run numbers sorted
+   for (const auto &file : inputDataFilePaths)
+   {
+      const std::string fileName = static_cast<std::string>(file);
+      runNumbers.emplace_back(std::stoi(fileName.substr(inputDir.size() + 3, 6)));
    }
 
    if (argc < 3) // Mode1
@@ -77,8 +86,8 @@ int main(int argc, char **argv)
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
-      system(("mkdir -p tmp/EMCRunByRunOffset/" + runName).c_str());
-      system(("rm -rf tmp/EMCRunByRunOffset/" + runName + "/*").c_str());
+      system(("mkdir -p tmp/progress/EMCTRunByRunOffset/" + runName).c_str());
+      system(("rm -rf tmp/progress/EMCTRunByRunOffset/" + runName + "/*").c_str());
 
       numberOfIterations = inputYAMLCal["sectors_to_calibrate"].size()*runNumbers.size();
 
@@ -89,7 +98,7 @@ int main(int argc, char **argv)
       {
          // man ROOT sucks (TF1::Fit is still not thread safe) so I have to call the same program 
          // recursively in shell outside of the current instance to implement multithreading
-         system((static_cast<std::string>("./bin/EMCRunByRunOffset ") + 
+         system((static_cast<std::string>("./bin/EMCTRunByRunOffset ") + 
                  argv[1] + " " + std::to_string(sectorBin) + " " + 
                  std::to_string(subprocessNumberOfThreads) + " 0").c_str());;
       };
@@ -160,9 +169,9 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
    parametersOutput << runNumbers.size() << std::endl;
 
-   const std::string tCorrFitFunc = 
-      inputYAMLCal["tcorr_fit_func"].as<std::string>();
-   const std::string tCorrMeanVsADCFitFunc = 
+   const std::string tPhotonFitFunc = 
+      inputYAMLCal["t_photon_fit_func"].as<std::string>();
+   const std::string tPhotonMeanVsADCFitFunc = 
       inputYAMLCal["tcorr_mean_vs_adc_fit_func"].as<std::string>();
 
    TFile outputFile((outputDir + sectorName + "/tcorr_fits.root").c_str(), "RECREATE");
@@ -219,38 +228,38 @@ void EMCTiming::ProcessSector(const int sectorBin)
             // to the current bin on next iteration bin
             firstValidBinInRange = i + 1;
 
-            TF1 tCorrFit(("tcorr fit " + CppTools::DtoStr(valADC, 0)).c_str(), tCorrFitFunc.c_str());
+            TF1 tPhotonFit(("tcorr fit " + CppTools::DtoStr(valADC, 0)).c_str(), tPhotonFitFunc.c_str());
 
-            tCorrFit.SetRange(-10., 10.);
-            tCorrFit.SetParameters(tVsADCProj->GetMaximum(), 0, 0.5, 1., 1.);
+            tPhotonFit.SetRange(-10., 10.);
+            tPhotonFit.SetParameters(tVsADCProj->GetMaximum(), 0, 0.5, 1., 1.);
 
             for (unsigned int j = 1; j <= fitNTries; j++)
             {
-               if (j < fitNTries) tVsADCProj->Fit(&tCorrFit, "RQMBN");
-               else tVsADCProj->Fit(&tCorrFit, "RQMB");
+               if (j < fitNTries) tVsADCProj->Fit(&tPhotonFit, "RQMBN");
+               else tVsADCProj->Fit(&tPhotonFit, "RQMB");
 
                const double parameterDeviationScale = 1. + 1./static_cast<double>(j*j);
 
-               tCorrFit.SetRange(tCorrFit.GetParameter(1) - 
-                                 fabs(tCorrFit.GetParameter(2))*parameterDeviationScale,
-                                 tCorrFit.GetParameter(1) - 
-                                 fabs(tCorrFit.GetParameter(2))*parameterDeviationScale);
+               tPhotonFit.SetRange(tPhotonFit.GetParameter(1) - 
+                                 fabs(tPhotonFit.GetParameter(2))*parameterDeviationScale,
+                                 tPhotonFit.GetParameter(1) - 
+                                 fabs(tPhotonFit.GetParameter(2))*parameterDeviationScale);
 
-               for (int k = 0; k < tCorrFit.GetNpar(); k++)
+               for (int k = 0; k < tPhotonFit.GetNpar(); k++)
                {
                   if (k == 1)
                   {
-                     tCorrFit.SetParLimits(k, tCorrFit.GetParameter(k) - 
-                                           fabs(tCorrFit.GetParameter(2))*
+                     tPhotonFit.SetParLimits(k, tPhotonFit.GetParameter(1) - 
+                                           fabs(tPhotonFit.GetParameter(2))*
                                            (parameterDeviationScale - 1.),
-                                           tCorrFit.GetParameter(k) +
-                                           fabs(tCorrFit.GetParameter(2))*
+                                           tPhotonFit.GetParameter(1) +
+                                           fabs(tPhotonFit.GetParameter(2))*
                                            (parameterDeviationScale - 1.));
                   }
                   else
                   {
-                     tCorrFit.SetParLimits(k, tCorrFit.GetParameter(k)/parameterDeviationScale,
-                                           tCorrFit.GetParameter(k)*parameterDeviationScale);
+                     tPhotonFit.SetParLimits(k, tPhotonFit.GetParameter(k)/parameterDeviationScale,
+                                           tPhotonFit.GetParameter(k)*parameterDeviationScale);
                   }
                }
             }
@@ -258,12 +267,12 @@ void EMCTiming::ProcessSector(const int sectorBin)
             tVsADCProj->Write();
 
             // skipping outliers
-            if (fabs(tCorrFit.GetParameter(1)) > 5. || 
-                fabs(tCorrFit.GetParameter(2)) > 3. || 
-                fabs(tCorrFit.GetParameter(2)) < 0.1) continue;
+            if (fabs(tPhotonFit.GetParameter(1)) > 5. || 
+                fabs(tPhotonFit.GetParameter(2)) > 3. || 
+                fabs(tPhotonFit.GetParameter(2)) < 0.1) continue;
 
-            meansTVsADC.AddPoint(valADC, tCorrFit.GetParameter(1));
-            sigmasTVsADC.AddPoint(valADC, fabs(tCorrFit.GetParameter(2)));
+            meansTVsADC.AddPoint(valADC, tPhotonFit.GetParameter(1));
+            sigmasTVsADC.AddPoint(valADC, fabs(tPhotonFit.GetParameter(2)));
          }
       }
 
@@ -275,10 +284,10 @@ void EMCTiming::ProcessSector(const int sectorBin)
       sigmasTVsADC.SetMarkerColor(kAzure - 3);
       sigmasTVsADC.SetMarkerSize(0.5);
 
-      TF1 tCorrMeanVsADCFit("tcorr mean vs ADC fit", tCorrMeanVsADCFitFunc.c_str(), 0., 10000);
-      tCorrMeanVsADCFit.SetLineWidth(3);
-      tCorrMeanVsADCFit.SetLineStyle(2);
-      tCorrMeanVsADCFit.SetLineColor(kBlack);
+      TF1 tPhotonMeanVsADCFit("tcorr mean vs ADC fit", tPhotonMeanVsADCFitFunc.c_str(), 0., 10000);
+      tPhotonMeanVsADCFit.SetLineWidth(3);
+      tPhotonMeanVsADCFit.SetLineStyle(2);
+      tPhotonMeanVsADCFit.SetLineColor(kBlack);
 
       if (meansTVsADC.GetN() == 0) // bad run that passed the first bad run check
       {
@@ -289,23 +298,23 @@ void EMCTiming::ProcessSector(const int sectorBin)
       {
          for (unsigned int i = 1; i < fitNTries; i++)
          {
-            meansTVsADC.Fit(&tCorrMeanVsADCFit, "RQMBN");
+            meansTVsADC.Fit(&tPhotonMeanVsADCFit, "RQMBN");
 
-            for (int j = 0; j < tCorrMeanVsADCFit.GetNpar(); j++)
+            for (int j = 0; j < tPhotonMeanVsADCFit.GetNpar(); j++)
             {
-               tCorrMeanVsADCFit.SetParLimits(j, tCorrMeanVsADCFit.GetParameter(j)*
+               tPhotonMeanVsADCFit.SetParLimits(j, tPhotonMeanVsADCFit.GetParameter(j)*
                                               (1. - 6./static_cast<double>(i*i*i)), 
-                                              tCorrMeanVsADCFit.GetParameter(j)*
+                                              tPhotonMeanVsADCFit.GetParameter(j)*
                                               (1. + 4./static_cast<double>(i*i*i)));
             }
          }
       }
       else // root can't fit 1 point data
       {
-         tCorrMeanVsADCFit.SetParameter(0, meansTVsADC.GetPointY(0));
-         for (int i = 1; i < tCorrMeanVsADCFit.GetNpar(); i++)
+         tPhotonMeanVsADCFit.SetParameter(0, meansTVsADC.GetPointY(0));
+         for (int i = 1; i < tPhotonMeanVsADCFit.GetNpar(); i++)
          {
-            tCorrMeanVsADCFit.SetParameter(i, 0.);
+            tPhotonMeanVsADCFit.SetParameter(i, 0.);
          }
       }
 
@@ -324,7 +333,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
       frame->GetXaxis()->SetTitle("ADC");
 
-      tCorrMeanVsADCFit.Draw("SAME");
+      tPhotonMeanVsADCFit.Draw("SAME");
       meansTVsADC.Draw("P");
       sigmasTVsADC.Draw("P");
 
@@ -334,18 +343,18 @@ void EMCTiming::ProcessSector(const int sectorBin)
       
       parametersOutput << 1 << " ";
 
-      for (int i = 0; i < tCorrMeanVsADCFit.GetNpar() - 1; i++)
+      for (int i = 0; i < tPhotonMeanVsADCFit.GetNpar() - 1; i++)
       {
-         parametersOutput << tCorrMeanVsADCFit.GetParameter(i) << " ";
+         parametersOutput << tPhotonMeanVsADCFit.GetParameter(i) << " ";
       }
       parametersOutput << 
-         tCorrMeanVsADCFit.GetParameter(tCorrMeanVsADCFit.GetNpar() - 1) << std::endl;
+         tPhotonMeanVsADCFit.GetParameter(tPhotonMeanVsADCFit.GetNpar() - 1) << std::endl;
 
       frame->GetXaxis()->SetTitle("ADC");
 
       if (!showProgress)
       {
-         std::ofstream progressFile("tmp/EMCTowerOffset/" + runName + 
+         std::ofstream progressFile("tmp/progress/EMCTRunByRunOffset/" + runName + 
                                     "/" + std::to_string(sectorBin));
          progressFile << numberOfCalls;
       }
@@ -374,7 +383,7 @@ void EMCTiming::SetNumberOfCalls()
    if (programMode != 1) return; // Only Mode1 passes
    numberOfCalls = 0;
    for (const auto &file : 
-        std::filesystem::directory_iterator("tmp/EMCTowerOffset/" + runName))
+        std::filesystem::directory_iterator("tmp/progress/EMCTRunByRunOffset/" + runName))
    {
       std::string fileName = static_cast<std::string>(file.path());
       std::ifstream tmpFile(fileName.c_str());
@@ -383,4 +392,4 @@ void EMCTiming::SetNumberOfCalls()
    }
 }
 
-#endif /* EMC_RUN_BY_RUN_OFFSET_CPP */
+#endif /* EMCT_RUN_BY_RUN_OFFSET_CPP */

@@ -1,13 +1,13 @@
 /** 
- *  @file   EMCTowerOffset.cpp
+ *  @file   EMCTTowerOffset.cpp
  *  @brief  Contains realisations of functions and variables that are used for tower offset estimation from the sum of all runs
  *
  *  This file is a part of a project CalPhenix (https://github.com/Sergeyir/CalPhenix).
  *
  *  @author Sergei Antsupov (antsupov0124@gmail.com)
  **/
-#ifndef EMC_TOWER_OFFSET_CPP
-#define EMC_TOWER_OFFSET_CPP
+#ifndef EMCT_TOWER_OFFSET_CPP
+#define EMCT_TOWER_OFFSET_CPP
 
 #include "../include/EMCTiming.hpp"
 
@@ -22,9 +22,9 @@ int main(int argc, char **argv)
    {
       std::string errMsg = "Expected 1-2 or 3-4 parameters while " + std::to_string(argc - 1) + 
                            " parameter(s) were provided \n";
-      errMsg += "Usage: bin/EMCTowerOffset inputFile numberOfThreads=" + 
+      errMsg += "Usage: bin/EMCTTowerOffset inputFile numberOfThreads=" + 
                 std::to_string(std::thread::hardware_concurrency()) + "*\n";
-      errMsg += "Or**: bin/EMCTowerOffset inputFile sectorBin numberOfThreads showProgress=true";
+      errMsg += "Or**: bin/EMCTTowerOffset inputFile sectorBin numberOfThreads showProgress=true";
       errMsg += "*: default argument is the number of threads on the current machine \n";
       errMsg += "**: this mode processes only one sector \n";
       CppTools::PrintError(errMsg);
@@ -66,8 +66,8 @@ int main(int argc, char **argv)
       else numberOfThreads = std::thread::hardware_concurrency();
       if (numberOfThreads == 0) CppTools::PrintError("Number of threads must be bigger than 0");
 
-      system(("mkdir -p tmp/EMCTowerOffset/" + runName).c_str());
-      system(("rm -rf tmp/EMCTowerOffset/" + runName + "/*").c_str());
+      system(("mkdir -p tmp/progress/EMCTTowerOffset/" + runName).c_str());
+      system(("rm -rf tmp/progress/EMCTTowerOffset/" + runName + "/*").c_str());
 
       numberOfIterations = 0;
       for (unsigned int sectorBin = 0; sectorBin < 
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
       {
          // man ROOT sucks (TF1::Fit is still not thread safe) so I have to call the same program 
          // recursively in shell outside of the current instance to implement multithreading
-         system((static_cast<std::string>("./bin/EMCTowerOffset ") + 
+         system((static_cast<std::string>("./bin/EMCTTowerOffset ") + 
                  argv[1] + " " + std::to_string(sectorBin) + " " + 
                  std::to_string(subprocessNumberOfThreads) + " 0").c_str());;
       };
@@ -200,7 +200,7 @@ void EMCTiming::ProcessSector(const int sectorBin)
 
          if (!showProgress)
          {
-            std::ofstream progressFile("tmp/EMCTowerOffset/" + runName + 
+            std::ofstream progressFile("tmp/progress/EMCTTowerOffset/" + runName + 
                                        "/" + std::to_string(sectorBin));
             progressFile << numberOfCalls;
          }
@@ -318,7 +318,7 @@ void EMCTiming::SetNumberOfCalls()
    if (programMode != 1) return; // Only Mode1 passes
    numberOfCalls = 0;
    for (const auto &file : 
-        std::filesystem::directory_iterator("tmp/EMCTowerOffset/" + runName))
+        std::filesystem::directory_iterator("tmp/progress/EMCTTowerOffset/" + runName))
    {
       std::string fileName = static_cast<std::string>(file.path());
       std::ifstream tmpFile(fileName.c_str());
@@ -327,4 +327,4 @@ void EMCTiming::SetNumberOfCalls()
    }
 }
 
-#endif /* EMC_TOWER_OFFSET_CPP */
+#endif /* EMCT_TOWER_OFFSET_CPP */
