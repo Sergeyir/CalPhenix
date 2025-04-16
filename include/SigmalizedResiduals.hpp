@@ -43,7 +43,7 @@
 namespace SigmalizedResiduals
 {
 /*! @brief Calls PerformFitsForDifferentPT for the specified detector and variable for different centrality and zDC ranges
- * @param[in] detectorBin detector bin (i.e. element of array in "detectors_to_calibrate" field in input .json file) 
+ * @param[in] detectorBin detector bin (i.e. element of array in "detectors_to_calibrate" field in input .yaml file) 
  * @param[in] variableBin variable bin (0 for dphi and 1 for dz) 
  */
    void PerformFitsForDifferentCentrAndZDC(const unsigned int detectorBin, 
@@ -52,10 +52,10 @@ namespace SigmalizedResiduals
  * @param[in] hist histogram from which projections will be taken and approximated 
  * @param[in] grMeans graph in which means of approximations will be stored
  * @param[in] grSigmas graph in which sigmas of approximations will be stored
- * @param[in] detector container for the specified detector containing various data (name, approximation function, etc.; see "detectors_to_calibrate" field in input .json file)
- * @param[in] zDC container for the specified zDC range containing various data (minimum, maximum, etc.; see "zdc_bins" field in input .json file)
+ * @param[in] detector container for the specified detector containing various data (name, approximation function, etc.; see "detectors_to_calibrate" field in input .yaml file)
+ * @param[in] zDC container for the specified zDC range containing various data (minimum, maximum, etc.; see "zdc_bins" field in input .yaml file)
  * @param[in] charge charge of the particles that will be calibrated 
- * @param[in] centrality container for the specified centrality range containing various data (minimum, maximum, etc.; see "centrality_bins" field in input .json file)
+ * @param[in] centrality container for the specified centrality range containing various data (minimum, maximum, etc.; see "centrality_bins" field in input .yaml file)
  */
    void PerformFitsForDifferentPT(TH3F *hist, TGraphErrors& grMeans, TGraphErrors& grSigmas, 
                                   const YAML::Node& detector, 
@@ -72,9 +72,9 @@ namespace SigmalizedResiduals
    void PBarCall();
    /// @brief If showProgress set to false in main this function will calculate how many calls have passed from .tmp files and set this value for Par::numberOfCalls
    void SetNumberOfCalls();
-   /// Contents of input .json file for calibration
+   /// Contents of input .yaml file for calibration
    InputYAMLReader inputYAMLCal;
-   /// Contents of input .json file for run configuration
+   /// Contents of input .yaml file for run configuration
    InputYAMLReader inputYAMLMain;
    /// Name of run (e.g. Run14HeAu200 or Run7AuAu200)
    std::string runName;
@@ -118,7 +118,7 @@ namespace SigmalizedResiduals
    /// each consequent fit decreases the limits around value from previous fit for every parameter
    /// which makes bettter gradual gradient descent of approximation parameters since ROOT built in
    /// approximation algorithm has only limited resource to perform the gradient descent
-   /// This value will be read and updated from .json calibration input file
+   /// This value will be read and updated from .yaml calibration input file
    unsigned int fitNTries = 1;
    /// flag that tells the program whether dphi and dz distributions for all bins (pT, zDC, centrality, charge) should be drawn
    bool drawDValDistr = false;
@@ -130,12 +130,12 @@ namespace SigmalizedResiduals
  * Can be provided either 2 (mode 1) or 5 (mode 2) user passed input arguments (here we don't account for the name of executable as a first parameter when it is called).
  * 
  * When called in mode 1 (goes over all detectors specified in input file and values such as dphi and dz)
- * @param[in] argv[1] name of the .json input file or name of the directory containing .json input file 
+ * @param[in] argv[1] name of the .yaml input file or name of the directory containing .yaml input file 
  * @param[in] argv[2] number of threads the program will run on (if no value is passed this value is set to std::thread::hadrware_concurrency())
  *
  * When called in mode 2 (only for one detector and value - either dphi or dz)
- * @param[in] argv[1] name of the .json input file or name of the directory containing .json input file 
- * @param[in] argv[2] detector bin (i.e. element of array in "detectors_to_calibrate" field in input .json file) 
+ * @param[in] argv[1] name of the .yaml input file or name of the directory containing .yaml input file 
+ * @param[in] argv[2] detector bin (i.e. element of array in "detectors_to_calibrate" field in input .yaml file) 
  * @param[in] argv[3] variable bin (0 for dphi and 1 for dz) 
  * @param[in] argv[4] number of threads the program will run on (if no value is passed this value is set to std::thread::hadrware_concurrency())
  * @param[in] argv[5] if it is doesn't equal to '0' the ProgressBar will show the progress (if no value is passed this value is set to true)
