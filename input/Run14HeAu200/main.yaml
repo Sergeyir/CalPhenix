@@ -1,11 +1,5 @@
-# This file contains all important information about HeAu@200 GeV collision system
+# This file contains all important information about Run14HeAuMinBias run
 ---
-status: main # required field
+status: main # required field for checking the file application
 collision_system_name: HeAu200
 collision_system_name_tex: 'HeAu, #sqrt{s_NN}} = 200 GeV'
-is_pp: false # shows whether the collision is p+p; if false centrality_min and centrality_max will not be used
-centrality_min: 0
-centrality_max: 88
-run_name: Run14HeAu200
-magnetic_field: # magnetic fields of a run
-  - name: ''
