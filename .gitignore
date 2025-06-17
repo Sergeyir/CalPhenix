@@ -2,6 +2,7 @@ output/
 bin/
 lib/
 backup/
+html/
 tmp/
 build/
 output/
