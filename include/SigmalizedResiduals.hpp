@@ -103,7 +103,7 @@ namespace SigmalizedResiduals
    /// Centrality ranges
    std::vector<double> centralityRanges;
    /// pProgress bar - shows progress (see ProgressBar)
-   ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_GREEN};
+   ProgressBar pBar{"FANCY1", "", PBarColor::BOLD_RED};
    /// Value that shows whether the computation part of this program is finished; the other part joins the threads and finishes the program
    bool isProcessFinished = false;
    /// Overall number of iterations that the program will make

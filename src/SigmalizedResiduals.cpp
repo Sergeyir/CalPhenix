@@ -186,6 +186,8 @@ int main(int argc, char **argv)
       isProcessFinished = true;
       pBarThr.join();
    }
+
+   if (showProgress) CppTools::PrintInfo("SigmalizedResiduals has finished running succesfully");
  
    return 0;
 }
@@ -822,10 +824,10 @@ void SigmalizedResiduals::PerformFitsForDifferentPT(TH3F *hist, TGraphErrors &gr
       zDCRangeTLatex.SetText(0.17, 0.79, zDCRangeName.c_str());
       chargeTLatex.SetText(0.17, 0.73, chargeName.c_str());
       centralityRangeTLatex.SetText(0.17, 0.66, centralityRangeName.c_str());
-      gPad->Add(&pTRangeTLatex);
-      gPad->Add(&zDCRangeTLatex);
-      gPad->Add(&chargeTLatex);
-      gPad->Add(&centralityRangeTLatex);
+      pTRangeTLatex.DrawClone();
+      zDCRangeTLatex.DrawClone();
+      chargeTLatex.DrawClone();
+      centralityRangeTLatex.DrawClone();
 
       iCanv++;
 
@@ -1001,7 +1003,7 @@ void SigmalizedResiduals::PBarCall()
                      static_cast<double>(numberOfIterations));
       std::this_thread::sleep_for(std::chrono::milliseconds(200));
    }
-   pBar.Print(1.);
+   pBar.Finish();
 };
 
 void SigmalizedResiduals::SetNumberOfCalls()
